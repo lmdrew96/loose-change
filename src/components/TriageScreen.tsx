@@ -60,7 +60,7 @@ export function TriageScreen() {
         <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
-        <h1 className="text-lg font-semibold">Triage</h1>
+        <h1 className="font-heading text-2xl">Triage</h1>
         <span className="w-5" />
       </header>
 

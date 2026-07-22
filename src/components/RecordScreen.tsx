@@ -123,6 +123,10 @@ export function RecordScreen() {
         )}
       </Link>
 
+      <h1 className="font-heading absolute top-6 left-1/2 -translate-x-1/2 text-3xl text-gold">
+        Loose Change
+      </h1>
+
       <button
         onClick={() => setView("text")}
         aria-label="Switch to text capture"

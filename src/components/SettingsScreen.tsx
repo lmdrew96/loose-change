@@ -41,7 +41,7 @@ export function SettingsScreen() {
         <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
-        <h1 className="text-lg font-semibold">Settings</h1>
+        <h1 className="font-heading text-2xl">Settings</h1>
       </header>
 
       <section className="mb-8">
