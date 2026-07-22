@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
+import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon, PlayIcon, PauseIcon } from "@/components/icons";
 
 export function TriageScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -176,7 +176,7 @@ export function TriageScreen() {
                   : "Transcribing…")}
             </p>
             {entry.captureMode === "voice" && entry.audioUrl && (
-              <audio controls src={entry.audioUrl} className="mt-3 w-full" />
+              <AudioPlayer key={entry._id} src={entry.audioUrl} />
             )}
           </div>
         )}
@@ -236,5 +236,63 @@ export function TriageScreen() {
         </div>
       )}
     </main>
+  );
+}
+
+function AudioPlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) audio.pause();
+    else void audio.play();
+  }
+
+  function onTimeUpdate() {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    setProgress(audio.currentTime / audio.duration);
+  }
+
+  function onScrub(e: React.ChangeEvent<HTMLInputElement>) {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const ratio = Number(e.target.value);
+    audio.currentTime = ratio * audio.duration;
+    setProgress(ratio);
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-3">
+      <audio
+        ref={audioRef}
+        src={src}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onTimeUpdate={onTimeUpdate}
+        className="hidden"
+      />
+      <button
+        onClick={togglePlay}
+        aria-label={playing ? "Pause" : "Play"}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-jungle"
+      >
+        {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.001}
+        value={progress}
+        onChange={onScrub}
+        aria-label="Seek"
+        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-olive accent-gold"
+      />
+    </div>
   );
 }
