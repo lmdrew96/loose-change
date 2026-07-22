@@ -1,19 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 
 export function TriageScreen() {
   const { isAuthenticated } = useConvexAuth();
-  const result = useQuery(
+  const { results, status, loadMore } = usePaginatedQuery(
     api.entries.listInbox,
-    isAuthenticated ? { paginationOpts: { numItems: 1, cursor: null } } : "skip",
+    isAuthenticated ? {} : "skip",
+    { initialNumItems: 1 },
   );
-  const entry = result?.page[0];
+  const entry = results[0];
+
+  // A page can reactively shrink to zero items (e.g. the entry we just kept/
+  // discarded no longer matches) while more untriaged entries still exist
+  // further down the index — Convex signals this as canLoadMore with an
+  // empty page rather than auto-advancing. Keep pulling until we land on a
+  // real entry or genuinely exhaust the query.
+  useEffect(() => {
+    if (status === "CanLoadMore" && results.length === 0) {
+      loadMore(1);
+    }
+  }, [status, results.length, loadMore]);
+
+  const loading =
+    status === "LoadingFirstPage" || status === "LoadingMore" || (status === "CanLoadMore" && results.length === 0);
 
   const keepEntry = useMutation(api.entries.keepEntry);
   const discardEntry = useMutation(api.entries.discardEntry);
@@ -65,7 +80,7 @@ export function TriageScreen() {
       </header>
 
       <div className="flex flex-1 items-center justify-center">
-        {result === undefined ? (
+        {loading ? (
           <p className="text-sm text-beaver">Loading…</p>
         ) : !entry ? (
           <p className="text-sm text-beaver">Nothing left to triage.</p>
