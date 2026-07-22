@@ -21,6 +21,14 @@ export default defineSchema({
     ),
     promotedTo: v.union(v.literal("kindling"), v.literal("controlledchaos"), v.null()),
     discardedAt: v.union(v.number(), v.null()),
+    // What status to restore on undoDiscard — discard is now reachable from
+    // kept (not just untriaged via Triage), so a hardcoded "back to
+    // untriaged" would wrongly dump a kept memo back into the inbox.
+    // Absent on rows discarded before this field existed; those only ever
+    // came from Triage, so undo falls back to "untriaged" for them.
+    discardedFromStatus: v.optional(
+      v.union(v.literal("untriaged"), v.literal("kept"), v.literal("promoted")),
+    ),
     audioDeletedAt: v.union(v.number(), v.null()),
     createdAt: v.number(),
   })

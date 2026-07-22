@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Doc } from "../../convex/_generated/dataModel";
-import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon } from "@/components/icons";
+import type { Doc, Id } from "../../convex/_generated/dataModel";
+import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon, TrashIcon } from "@/components/icons";
 
 const PAGE_SIZE = 20;
 
@@ -25,6 +25,22 @@ export function KeptScreen() {
     api.entries.listKept,
     isAuthenticated ? { paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
   );
+
+  const discardEntry = useMutation(api.entries.discardEntry);
+  const undoDiscard = useMutation(api.entries.undoDiscard);
+  const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
+
+  async function handleDelete(entryId: Id<"entries">) {
+    await discardEntry({ entryId });
+    setUndoTarget({ entryId });
+    setTimeout(() => setUndoTarget((current) => (current?.entryId === entryId ? null : current)), 6000);
+  }
+
+  async function handleUndo() {
+    if (!undoTarget) return;
+    await undoDiscard({ entryId: undoTarget.entryId });
+    setUndoTarget(null);
+  }
 
   function goNext() {
     if (!result || result.isDone) return;
@@ -48,7 +64,9 @@ export function KeptScreen() {
       <div className="flex-1 space-y-2">
         {result === undefined && <p className="text-sm text-beaver">Loading…</p>}
         {result?.page.length === 0 && <p className="text-sm text-beaver">Nothing kept yet.</p>}
-        {result?.page.map((entry) => <EntryCard key={entry._id} entry={entry} />)}
+        {result?.page.map((entry) => (
+          <EntryCard key={entry._id} entry={entry} onDelete={() => void handleDelete(entry._id)} />
+        ))}
       </div>
 
       <div className="mt-4 flex justify-between">
@@ -59,11 +77,30 @@ export function KeptScreen() {
           Next →
         </button>
       </div>
+
+      {undoTarget && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white"
+        >
+          <span>Deleted</span>
+          <button onClick={handleUndo} className="font-medium text-gold underline">
+            Undo
+          </button>
+        </div>
+      )}
     </main>
   );
 }
 
-function EntryCard({ entry }: { entry: Doc<"entries"> & { audioUrl: string | null } }) {
+function EntryCard({
+  entry,
+  onDelete,
+}: {
+  entry: Doc<"entries"> & { audioUrl: string | null };
+  onDelete: () => void;
+}) {
   const preview =
     entry.transcript ??
     (entry.transcriptionStatus === "failed" ? "(couldn't transcribe — audio available)" : "Transcribing…");
@@ -83,6 +120,13 @@ function EntryCard({ entry }: { entry: Doc<"entries"> & { audioUrl: string | nul
         <p className="line-clamp-2 text-sm">{preview}</p>
         <p className="mt-1 text-xs text-beaver">{timestampFormatter.format(entry.createdAt)}</p>
       </div>
+      <button
+        onClick={onDelete}
+        aria-label="Delete"
+        className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
+      >
+        <TrashIcon size={16} />
+      </button>
     </div>
   );
 }

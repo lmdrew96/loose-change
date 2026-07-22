@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
+import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon, TrashIcon } from "@/components/icons";
 
 const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
@@ -23,6 +23,7 @@ export function SearchScreen() {
     isAuthenticated && submittedQuery ? { query: submittedQuery } : "skip",
   );
   const undoDiscard = useMutation(api.entries.undoDiscard);
+  const discardEntry = useMutation(api.entries.discardEntry);
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
@@ -77,6 +78,15 @@ export function SearchScreen() {
                 className="shrink-0 text-xs font-medium text-gold underline"
               >
                 Undo
+              </button>
+            )}
+            {entry.status === "kept" && (
+              <button
+                onClick={() => discardEntry({ entryId: entry._id })}
+                aria-label="Delete"
+                className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
+              >
+                <TrashIcon size={16} />
               </button>
             )}
           </div>

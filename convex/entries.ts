@@ -83,14 +83,20 @@ async function keepHandler(ctx: MutationCtx, userId: string, entryId: Id<"entrie
 }
 
 async function discardHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
-  await requireOwnedEntry(ctx, userId, entryId);
-  await ctx.db.patch(entryId, { status: "discarded", discardedAt: Date.now() });
+  const entry = await requireOwnedEntry(ctx, userId, entryId);
+  const discardedFromStatus: "untriaged" | "kept" | "promoted" =
+    entry.status === "discarded" ? "untriaged" : entry.status;
+  await ctx.db.patch(entryId, { status: "discarded", discardedAt: Date.now(), discardedFromStatus });
 }
 
 async function undoDiscardHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
   const entry = await requireOwnedEntry(ctx, userId, entryId);
   if (entry.status !== "discarded") throw new Error("Entry is not discarded");
-  await ctx.db.patch(entryId, { status: "untriaged", discardedAt: null });
+  await ctx.db.patch(entryId, {
+    status: entry.discardedFromStatus ?? "untriaged",
+    discardedAt: null,
+    discardedFromStatus: undefined,
+  });
 }
 
 async function markPromotedHandler(

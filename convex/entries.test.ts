@@ -78,3 +78,45 @@ describe("requireMcpSecret (MCP-authed path)", () => {
     expect(entry._id).toBe(entryId);
   });
 });
+
+describe("discard/undo restores the status discard was called from", () => {
+  test("undoing a kept entry's discard restores it to kept, not untriaged", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+
+    await owner.mutation(api.entries.discardEntry, { entryId });
+    await owner.mutation(api.entries.undoDiscard, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("kept");
+  });
+
+  test("undoing an untriaged entry's discard restores it to untriaged", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+
+    await owner.mutation(api.entries.discardEntry, { entryId });
+    await owner.mutation(api.entries.undoDiscard, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+  });
+
+  test("a legacy discard with no discardedFromStatus falls back to untriaged on undo", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+    await owner.mutation(api.entries.discardEntry, { entryId });
+
+    // Simulate a row discarded before discardedFromStatus existed.
+    await t.run((ctx) => ctx.db.patch(entryId, { discardedFromStatus: undefined }));
+
+    await owner.mutation(api.entries.undoDiscard, { entryId });
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+  });
+});
