@@ -82,12 +82,12 @@ export function RecordScreen() {
 
   if (view === "text") {
     return (
-      <main className="flex flex-1 flex-col bg-neutral-950 p-6 text-neutral-100">
+      <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
         <div className="flex justify-end">
           <button
             onClick={() => setView("voice-idle")}
             aria-label="Back to voice capture"
-            className="rounded-full p-2 text-neutral-400 hover:text-neutral-100"
+            className="rounded-full p-2 text-beaver hover:text-neutral-100"
           >
             <MicIcon />
           </button>
@@ -97,12 +97,12 @@ export function RecordScreen() {
           value={textValue}
           onChange={(e) => setTextValue(e.target.value)}
           placeholder="What's on your mind..."
-          className="mt-4 flex-1 resize-none bg-transparent text-lg outline-none placeholder:text-neutral-600"
+          className="mt-4 flex-1 resize-none bg-transparent text-lg outline-none placeholder:text-beaver/60"
         />
         <button
           onClick={saveText}
           disabled={!textValue.trim()}
-          className="mt-4 rounded-lg bg-neutral-100 py-3 font-medium text-neutral-950 disabled:opacity-30"
+          className="mt-4 rounded-lg bg-gold py-3 font-medium text-jungle disabled:opacity-30"
         >
           {textSaved ? "Saved ✓" : "Save"}
         </button>
@@ -111,11 +111,11 @@ export function RecordScreen() {
   }
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center gap-4 p-6">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-4 bg-jungle p-6">
       <Link
         href="/inbox"
         aria-label="Open inbox"
-        className="absolute left-6 top-6 flex items-center gap-1.5 rounded-full p-2 text-neutral-400 hover:text-neutral-600"
+        className="absolute left-6 top-6 flex items-center gap-1.5 rounded-full p-2 text-beaver hover:text-gold"
       >
         <InboxIcon />
         {untriagedCount !== undefined && untriagedCount > 0 && (
@@ -126,7 +126,7 @@ export function RecordScreen() {
       <button
         onClick={() => setView("text")}
         aria-label="Switch to text capture"
-        className="absolute right-6 top-6 rounded-full p-2 text-neutral-400 hover:text-neutral-600"
+        className="absolute right-6 top-6 rounded-full p-2 text-beaver hover:text-gold"
       >
         <KeyboardIcon />
       </button>
@@ -134,12 +134,12 @@ export function RecordScreen() {
       <button
         onClick={view === "voice-recording" ? stopRecording : startRecording}
         aria-label={view === "voice-recording" ? "Stop recording" : "Start recording"}
-        className={`flex h-32 w-32 items-center justify-center rounded-full transition-colors ${
+        className={`flex h-32 w-32 items-center justify-center rounded-full text-neutral-100 transition-colors ${
           view === "voice-recording"
-            ? "animate-pulse bg-red-500"
+            ? "animate-pulse bg-engineering"
             : view === "saved"
-              ? "bg-green-500"
-              : "bg-neutral-800 hover:bg-neutral-700"
+              ? "bg-gold text-jungle"
+              : "bg-olive hover:bg-beaver"
         }`}
       >
         {view === "saved" ? (
@@ -151,8 +151,8 @@ export function RecordScreen() {
         )}
       </button>
 
-      {view === "saved" && <p className="text-sm text-neutral-500">Saved ✓</p>}
-      {micError && <p className="text-sm text-red-500">{micError}</p>}
+      {view === "saved" && <p className="text-sm text-gold">Saved ✓</p>}
+      {micError && <p className="text-sm text-engineering">{micError}</p>}
     </main>
   );
 }

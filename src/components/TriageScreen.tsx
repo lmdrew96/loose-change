@@ -55,13 +55,9 @@ export function TriageScreen() {
   }
 
   return (
-    <main className="flex flex-1 flex-col p-6">
+    <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
       <header className="mb-4 flex items-center justify-between">
-        <Link
-          href="/inbox"
-          aria-label="Back to inbox"
-          className="rounded-full p-2 text-neutral-400 hover:text-neutral-600"
-        >
+        <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
         <h1 className="text-lg font-semibold">Triage</h1>
@@ -70,12 +66,12 @@ export function TriageScreen() {
 
       <div className="flex flex-1 items-center justify-center">
         {result === undefined ? (
-          <p className="text-sm text-neutral-500">Loading…</p>
+          <p className="text-sm text-beaver">Loading…</p>
         ) : !entry ? (
-          <p className="text-sm text-neutral-500">Nothing left to triage.</p>
+          <p className="text-sm text-beaver">Nothing left to triage.</p>
         ) : (
-          <div className="w-full max-w-md rounded-lg border border-neutral-200 p-6 dark:border-neutral-800">
-            <div className="mb-3 flex items-center gap-2 text-neutral-400">
+          <div className="w-full max-w-md rounded-lg border border-olive p-6">
+            <div className="mb-3 flex items-center gap-2 text-beaver">
               {entry.captureMode === "voice" ? (
                 <MicIcon size={16} />
               ) : entry.captureMode === "text" ? (
@@ -99,43 +95,43 @@ export function TriageScreen() {
         <button
           onClick={handleKeep}
           disabled={!entry}
-          className="rounded-lg bg-neutral-800 py-3 text-sm text-white disabled:opacity-30"
+          className="rounded-lg bg-gold py-3 text-sm font-medium text-jungle disabled:opacity-30"
         >
           Keep
         </button>
         <button
           onClick={handleDiscard}
           disabled={!entry}
-          className="rounded-lg bg-neutral-800 py-3 text-sm text-white disabled:opacity-30"
+          className="rounded-lg bg-engineering py-3 text-sm text-white disabled:opacity-30"
         >
           Discard
         </button>
         <button
           onClick={() => handleSendTo("kindling")}
           disabled={!entry?.transcript}
-          className="rounded-lg bg-neutral-800 py-3 text-sm text-white disabled:opacity-30"
+          className="rounded-lg bg-olive py-3 text-sm text-white disabled:opacity-30"
         >
           Kindling
         </button>
         <button
           onClick={() => handleSendTo("controlledchaos")}
           disabled={!entry?.transcript}
-          className="rounded-lg bg-neutral-800 py-3 text-sm text-white disabled:opacity-30"
+          className="rounded-lg bg-olive py-3 text-sm text-white disabled:opacity-30"
         >
           → CC
         </button>
       </div>
 
       {undoTarget && (
-        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-neutral-900 px-4 py-2 text-sm text-white">
+        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white">
           <span>Discarded</span>
-          <button onClick={handleUndo} className="font-medium underline">
+          <button onClick={handleUndo} className="font-medium text-gold underline">
             Undo
           </button>
         </div>
       )}
       {toast && (
-        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit rounded-full bg-neutral-900 px-4 py-2 text-sm text-white">
+        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit rounded-full bg-olive px-4 py-2 text-sm text-white">
           {toast}
         </div>
       )}

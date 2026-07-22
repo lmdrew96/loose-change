@@ -10,11 +10,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Engie Designs palette */
+  --color-beaver: #948870;
+  --color-olive: #55553d;
+  --color-jungle: #15342e;
+  --color-gold: #d19e2c;
+  --color-engineering: #b71007;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #15342e;
     --foreground: #ededed;
   }
 }
