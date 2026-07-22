@@ -12,6 +12,8 @@ import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
 import type * as entries from "../entries.js";
 import type * as mcpTokens from "../mcpTokens.js";
+import type * as push from "../push.js";
+import type * as pushData from "../pushData.js";
 import type * as retention from "../retention.js";
 import type * as transcription from "../transcription.js";
 
@@ -26,6 +28,8 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   entries: typeof entries;
   mcpTokens: typeof mcpTokens;
+  push: typeof push;
+  pushData: typeof pushData;
   retention: typeof retention;
   transcription: typeof transcription;
 }>;

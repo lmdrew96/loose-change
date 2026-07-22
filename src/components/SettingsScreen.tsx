@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useClerk, useUser } from "@clerk/nextjs";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon } from "@/components/icons";
+import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
 
 export function SettingsScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -16,10 +17,30 @@ export function SettingsScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
+  const subscribePush = useMutation(api.pushData.subscribe);
+  const unsubscribePush = useMutation(api.pushData.unsubscribe);
+  // null until the initial support/subscription check resolves — doubles as
+  // the "is push even supported" gate for rendering the section at all.
+  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     getOrCreateMcpToken({}).then(setToken);
   }, [isAuthenticated, getOrCreateMcpToken]);
+
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    let cancelled = false;
+    getExistingPushSubscription().then((sub) => {
+      if (!cancelled) setPushEnabled(sub !== null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const mcpUrl = token && typeof window !== "undefined" ? `${window.location.origin}/${token}/mcp` : null;
 
@@ -33,6 +54,43 @@ export function SettingsScreen() {
   async function handleRegenerate() {
     const newToken = await regenerateMcpToken({});
     setToken(newToken);
+  }
+
+  async function handleTogglePush() {
+    setPushError(null);
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        const sub = await getExistingPushSubscription();
+        if (sub) {
+          await sub.unsubscribe();
+          await unsubscribePush({ endpoint: sub.endpoint });
+        }
+        setPushEnabled(false);
+        return;
+      }
+
+      if (!vapidPublicKey) {
+        setPushError("Not ready yet — try again in a moment.");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushError("Notification permission denied.");
+        return;
+      }
+      const sub = await subscribeToPush(vapidPublicKey);
+      const json = sub.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        throw new Error("Push subscription missing endpoint/keys");
+      }
+      await subscribePush({ endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth });
+      setPushEnabled(true);
+    } catch {
+      setPushError("Couldn't update reminder notifications.");
+    } finally {
+      setPushBusy(false);
+    }
   }
 
   return (
@@ -54,6 +112,28 @@ export function SettingsScreen() {
           Sign out
         </button>
       </section>
+
+      {pushEnabled !== null && (
+        <section className="mb-8">
+          <h2 className="mb-2 text-sm font-medium text-beaver">Reminders</h2>
+          <p className="mb-3 text-sm text-beaver">
+            Once a week, get a notification resurfacing a random idea you&rsquo;ve kept — not a nag about your
+            inbox, just a nudge to revisit something you already decided mattered.
+          </p>
+          <button
+            onClick={handleTogglePush}
+            disabled={pushBusy}
+            className="rounded-lg bg-olive px-4 py-2 text-sm text-white disabled:opacity-30"
+          >
+            {pushEnabled ? "Turn off reminders" : "Turn on reminders"}
+          </button>
+          {pushError && (
+            <p role="status" aria-live="polite" className="mt-2 text-sm text-engineering">
+              {pushError}
+            </p>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-beaver">MCP connection</h2>

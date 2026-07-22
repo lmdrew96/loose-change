@@ -39,4 +39,14 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_token", ["token"]),
+
+  pushSubscriptions: defineTable({
+    userId: v.string(),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 });

@@ -9,4 +9,10 @@ crons.daily(
   internal.retention.deleteExpiredAudio,
 );
 
+crons.weekly(
+  "send reminder notifications",
+  { dayOfWeek: "sunday", hourUTC: 16, minuteUTC: 0 },
+  internal.push.sendReminders,
+);
+
 export default crons;

@@ -27,3 +27,15 @@ self.addEventListener("fetch", (event) => {
     fetch(request).catch(() => caches.match(OFFLINE_URL).then((res) => res || Response.error())),
   );
 });
+
+// Reminder pushes carry a JSON payload ({ title, body }) — see convex/push.ts.
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  const { title, body } = event.data.json();
+  event.waitUntil(self.registration.showNotification(title, { body, icon: "/icons/icon-192.png" }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.openWindow("/search"));
+});
