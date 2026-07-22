@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { addPendingCapture } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
@@ -11,7 +11,8 @@ import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon } from "@/compone
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
 
 export function RecordScreen() {
-  const untriagedCount = useQuery(api.entries.getUntriagedCount);
+  const { isAuthenticated } = useConvexAuth();
+  const untriagedCount = useQuery(api.entries.getUntriagedCount, isAuthenticated ? {} : "skip");
   const [view, setView] = useState<View>("voice-idle");
   const [micError, setMicError] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");

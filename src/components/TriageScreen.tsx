@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 
 export function TriageScreen() {
-  const result = useQuery(api.entries.listInbox, { paginationOpts: { numItems: 1, cursor: null } });
+  const { isAuthenticated } = useConvexAuth();
+  const result = useQuery(
+    api.entries.listInbox,
+    isAuthenticated ? { paginationOpts: { numItems: 1, cursor: null } } : "skip",
+  );
   const entry = result?.page[0];
 
   const keepEntry = useMutation(api.entries.keepEntry);

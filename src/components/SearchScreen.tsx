@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 
@@ -14,10 +14,14 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export function SearchScreen() {
+  const { isAuthenticated } = useConvexAuth();
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
 
-  const results = useQuery(api.entries.searchEntries, submittedQuery ? { query: submittedQuery } : "skip");
+  const results = useQuery(
+    api.entries.searchEntries,
+    isAuthenticated && submittedQuery ? { query: submittedQuery } : "skip",
+  );
 
   return (
     <main className="flex flex-1 flex-col p-6">

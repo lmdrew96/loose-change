@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon } from "@/components/icons";
@@ -17,13 +17,15 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export function InboxScreen() {
+  const { isAuthenticated } = useConvexAuth();
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const cursor = cursorStack[cursorStack.length - 1];
 
-  const result = useQuery(api.entries.listInbox, {
-    paginationOpts: { numItems: PAGE_SIZE, cursor },
-  });
-  const untriagedCount = useQuery(api.entries.getUntriagedCount);
+  const result = useQuery(
+    api.entries.listInbox,
+    isAuthenticated ? { paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
+  );
+  const untriagedCount = useQuery(api.entries.getUntriagedCount, isAuthenticated ? {} : "skip");
 
   function goNext() {
     if (!result || result.isDone) return;
