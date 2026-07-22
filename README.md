@@ -8,7 +8,7 @@ Frictionless voice/text capture for stray thoughts that hit while driving, falli
 - **Backend**: Convex
 - **Auth**: Clerk
 - **Language**: TypeScript
-- **Transcription**: Whisper API
+- **Transcription**: AssemblyAI
 - **Deployment**: Vercel
 
 ## Core Principle
@@ -65,7 +65,7 @@ entries {
 ## Transcription Pipeline
 
 - Convex action triggers on audio sync completion.
-- Calls Whisper API, writes result to `transcript`, sets `transcriptionStatus: "done"`.
+- Calls AssemblyAI, writes result to `transcript`, sets `transcriptionStatus: "done"`.
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
 - No retry-transcription UI in v1. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
 
@@ -96,7 +96,7 @@ Single-responsibility: `lc_mark_promoted` only logs where an entry went. It does
 | `CONVEX_DEPLOYMENT` | Convex project deployment URL | Yes |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk auth | Yes |
 | `CLERK_SECRET_KEY` | Clerk auth | Yes |
-| `WHISPER_API_KEY` | Transcription | Yes |
+| `ASSEMBLYAI_API_KEY` | Transcription | Yes |
 
 ## Design Constraints (do not violate)
 
