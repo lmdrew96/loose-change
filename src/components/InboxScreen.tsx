@@ -75,7 +75,7 @@ export function InboxScreen() {
   );
 }
 
-function EntryCard({ entry }: { entry: Doc<"entries"> }) {
+function EntryCard({ entry }: { entry: Doc<"entries"> & { audioUrl: string | null } }) {
   const preview =
     entry.transcript ??
     (entry.transcriptionStatus === "failed" ? "(couldn't transcribe — audio available)" : "Transcribing…");

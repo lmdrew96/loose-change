@@ -87,6 +87,9 @@ export function TriageScreen() {
                   ? "(couldn't transcribe — audio available)"
                   : "Transcribing…")}
             </p>
+            {entry.captureMode === "voice" && entry.audioUrl && (
+              <audio controls src={entry.audioUrl} className="mt-3 w-full" />
+            )}
           </div>
         )}
       </div>

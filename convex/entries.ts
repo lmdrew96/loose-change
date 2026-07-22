@@ -41,11 +41,20 @@ async function listInboxHandler(
   userId: string,
   paginationOpts: { numItems: number; cursor: string | null },
 ) {
-  return await ctx.db
+  const result = await ctx.db
     .query("entries")
     .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
     .order("desc")
     .paginate(paginationOpts);
+
+  const page = await Promise.all(
+    result.page.map(async (entry) => ({
+      ...entry,
+      audioUrl: entry.audioStorageId ? await ctx.storage.getUrl(entry.audioStorageId) : null,
+    })),
+  );
+
+  return { ...result, page };
 }
 
 async function getStatsHandler(ctx: QueryCtx, userId: string) {
