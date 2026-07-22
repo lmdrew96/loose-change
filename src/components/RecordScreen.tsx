@@ -4,11 +4,29 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { addPendingCapture } from "@/lib/offlineQueue";
+import {
+  addPendingCapture,
+  appendRecordingChunk,
+  clearDraftText,
+  finalizeInProgressRecording,
+  getDraftText,
+  saveDraftText,
+  startInProgressRecording,
+} from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
 import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
+
+// How often MediaRecorder flushes a chunk during recording. Chunks are
+// persisted to IndexedDB as they arrive, so at most this much trailing audio
+// is at risk if the app is killed mid-recording.
+const RECORDING_TIMESLICE_MS = 5000;
+
+// How long to wait after the last keystroke before persisting the text
+// draft — frequent enough that little typing is at risk, infrequent enough
+// to not hammer IndexedDB on every keystroke.
+const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
 export function RecordScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -18,8 +36,9 @@ export function RecordScreen() {
   const [textValue, setTextValue] = useState("");
   const [textSaved, setTextSaved] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const pendingAppendsRef = useRef<Promise<void>[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (view === "text") textareaRef.current?.focus();
@@ -31,28 +50,62 @@ export function RecordScreen() {
     return () => clearTimeout(timer);
   }, [view]);
 
+  // Restore an unsaved draft left behind by a previous session (e.g. the
+  // user navigated away or the app closed before tapping Save).
+  useEffect(() => {
+    getDraftText().then((draft) => {
+      if (draft) setTextValue(draft);
+    });
+  }, []);
+
+  // Debounce-persist the draft as the user types, so it survives navigating
+  // away or the app closing before Save is tapped.
+  useEffect(() => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      if (textValue.trim()) void saveDraftText(textValue);
+      else void clearDraftText();
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [textValue]);
+
   async function startRecording() {
     setMicError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
+      const localId = crypto.randomUUID();
+      const startedAt = Date.now();
+      pendingAppendsRef.current = [];
+
+      // mimeType isn't reliably populated until the recorder actually starts,
+      // so the in-progress record is created from onstart rather than before
+      // recorder.start() — offlineQueue serializes this against chunk
+      // appends, so no chunk can arrive before the record exists.
+      recorder.onstart = () => {
+        pendingAppendsRef.current.push(
+          startInProgressRecording(localId, recorder.mimeType || "audio/webm", startedAt),
+        );
+      };
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          pendingAppendsRef.current.push(appendRecordingChunk(localId, e.data));
+        }
       };
       recorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         stream.getTracks().forEach((track) => track.stop());
-        await addPendingCapture({
-          localId: crypto.randomUUID(),
-          captureMode: "voice",
-          audioBlob: blob,
-          capturedAt: Date.now(),
-        });
-        void syncPendingCaptures();
-        setView("saved");
+        await Promise.all(pendingAppendsRef.current);
+        const saved = await finalizeInProgressRecording(localId);
+        if (saved) {
+          void syncPendingCaptures();
+          setView("saved");
+        } else {
+          setView("voice-idle");
+        }
       };
-      recorder.start();
+      recorder.start(RECORDING_TIMESLICE_MS);
       mediaRecorderRef.current = recorder;
       setView("voice-recording");
     } catch {
@@ -74,6 +127,7 @@ export function RecordScreen() {
       capturedAt: Date.now(),
     });
     void syncPendingCaptures();
+    await clearDraftText();
     setTextValue("");
     setTextSaved(true);
     setTimeout(() => setTextSaved(false), 1200);
