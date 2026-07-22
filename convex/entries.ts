@@ -1,7 +1,8 @@
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 interface AuthCtx {
   auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
@@ -11,6 +12,13 @@ async function requireUserId(ctx: AuthCtx): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
   return identity.subject;
+}
+
+async function requireOwnedEntry(ctx: MutationCtx, entryId: Id<"entries">) {
+  const userId = await requireUserId(ctx);
+  const entry = await ctx.db.get(entryId);
+  if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+  return entry;
 }
 
 export const generateUploadUrl = mutation({
@@ -112,5 +120,41 @@ export const getUntriagedCount = query({
       .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
       .collect();
     return entries.length;
+  },
+});
+
+export const keepEntry = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    await requireOwnedEntry(ctx, entryId);
+    await ctx.db.patch(entryId, { status: "kept" });
+  },
+});
+
+export const discardEntry = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    await requireOwnedEntry(ctx, entryId);
+    await ctx.db.patch(entryId, { status: "discarded", discardedAt: Date.now() });
+  },
+});
+
+export const undoDiscard = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    const entry = await requireOwnedEntry(ctx, entryId);
+    if (entry.status !== "discarded") throw new Error("Entry is not discarded");
+    await ctx.db.patch(entryId, { status: "untriaged", discardedAt: null });
+  },
+});
+
+export const markPromoted = mutation({
+  args: {
+    entryId: v.id("entries"),
+    destination: v.union(v.literal("kindling"), v.literal("controlledchaos")),
+  },
+  handler: async (ctx, { entryId, destination }) => {
+    await requireOwnedEntry(ctx, entryId);
+    await ctx.db.patch(entryId, { status: "promoted", promotedTo: destination });
   },
 });

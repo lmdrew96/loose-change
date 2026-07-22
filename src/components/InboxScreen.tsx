@@ -45,7 +45,12 @@ export function InboxScreen() {
           <ArrowLeftIcon />
         </Link>
         <h1 className="text-lg font-semibold">Inbox</h1>
-        <span className="text-sm text-neutral-500">{untriagedCount ?? ""}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-neutral-500">{untriagedCount ?? ""}</span>
+          <Link href="/triage" className="text-sm underline">
+            Triage
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 space-y-2">
