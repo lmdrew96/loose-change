@@ -47,6 +47,9 @@ export function InboxScreen() {
         <h1 className="text-lg font-semibold">Inbox</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-neutral-500">{untriagedCount ?? ""}</span>
+          <Link href="/search" className="text-sm underline">
+            Search
+          </Link>
           <Link href="/triage" className="text-sm underline">
             Triage
           </Link>
