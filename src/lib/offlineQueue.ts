@@ -168,6 +168,20 @@ export async function finalizeInProgressRecording(localId: string): Promise<bool
   return saved;
 }
 
+// Discards an in-progress recording without turning it into a pending
+// capture — used when the user explicitly cancels mid-recording (e.g. a
+// pocket-dial) so it never flows into the queue → transcription → inbox
+// pipeline.
+export async function cancelInProgressRecording(localId: string): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IN_PROGRESS_STORE, "readwrite");
+    tx.objectStore(IN_PROGRESS_STORE).delete(localId);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // Called once at app boot: any in-progress recording still present means the
 // app was killed before Stop was tapped. Salvages whatever was captured.
 export async function salvageOrphanedRecordings(): Promise<void> {

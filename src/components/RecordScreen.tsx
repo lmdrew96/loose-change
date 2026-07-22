@@ -7,6 +7,7 @@ import { api } from "../../convex/_generated/api";
 import {
   addPendingCapture,
   appendRecordingChunk,
+  cancelInProgressRecording,
   clearDraftText,
   finalizeInProgressRecording,
   getDraftText,
@@ -16,7 +17,7 @@ import {
   subscribePendingCaptures,
 } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
-import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon } from "@/components/icons";
+import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon, XIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
 
@@ -40,6 +41,8 @@ export function RecordScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const pendingAppendsRef = useRef<Promise<void>[]>([]);
+  const recordingLocalIdRef = useRef<string | null>(null);
+  const cancelledRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +96,8 @@ export function RecordScreen() {
       const localId = crypto.randomUUID();
       const startedAt = Date.now();
       pendingAppendsRef.current = [];
+      recordingLocalIdRef.current = localId;
+      cancelledRef.current = false;
 
       // mimeType isn't reliably populated until the recorder actually starts,
       // so the in-progress record is created from onstart rather than before
@@ -111,6 +116,11 @@ export function RecordScreen() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         await Promise.all(pendingAppendsRef.current);
+        if (cancelledRef.current) {
+          await cancelInProgressRecording(localId);
+          setView("voice-idle");
+          return;
+        }
         const saved = await finalizeInProgressRecording(localId);
         if (saved) {
           void syncPendingCaptures();
@@ -128,6 +138,11 @@ export function RecordScreen() {
   }
 
   function stopRecording() {
+    mediaRecorderRef.current?.stop();
+  }
+
+  function cancelRecording() {
+    cancelledRef.current = true;
     mediaRecorderRef.current?.stop();
   }
 
@@ -227,6 +242,17 @@ export function RecordScreen() {
           <MicIcon size={40} />
         )}
       </button>
+
+      {view === "voice-recording" && (
+        <button
+          onClick={cancelRecording}
+          aria-label="Cancel recording without saving"
+          className="flex items-center gap-1.5 rounded-full p-3 text-sm text-beaver hover:text-engineering"
+        >
+          <XIcon size={16} />
+          Cancel
+        </button>
+      )}
 
       {view === "saved" && <p className="text-sm text-gold">Saved ✓</p>}
       {micError && <p className="text-sm text-engineering">{micError}</p>}
