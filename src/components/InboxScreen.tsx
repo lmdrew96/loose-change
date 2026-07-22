@@ -5,7 +5,15 @@ import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon } from "@/components/icons";
+import {
+  MicIcon,
+  KeyboardIcon,
+  ChatBubbleIcon,
+  ArrowLeftIcon,
+  SearchIcon,
+  LayersIcon,
+  SettingsIcon,
+} from "@/components/icons";
 
 const PAGE_SIZE = 20;
 
@@ -43,16 +51,16 @@ export function InboxScreen() {
           <ArrowLeftIcon />
         </Link>
         <h1 className="font-heading text-2xl">Inbox</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-beaver">{untriagedCount ?? ""}</span>
-          <Link href="/search" className="text-sm text-gold underline">
-            Search
+        <div className="flex items-center gap-1">
+          <span className="mr-1 text-sm text-beaver">{untriagedCount ?? ""}</span>
+          <Link href="/search" aria-label="Search" className="rounded-full p-2 text-beaver hover:text-gold">
+            <SearchIcon size={18} />
           </Link>
-          <Link href="/triage" className="text-sm text-gold underline">
-            Triage
+          <Link href="/triage" aria-label="Triage" className="rounded-full p-2 text-beaver hover:text-gold">
+            <LayersIcon size={18} />
           </Link>
-          <Link href="/settings" className="text-sm text-gold underline">
-            Settings
+          <Link href="/settings" aria-label="Settings" className="rounded-full p-2 text-beaver hover:text-gold">
+            <SettingsIcon size={18} />
           </Link>
         </div>
       </header>
