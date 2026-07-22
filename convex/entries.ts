@@ -1,8 +1,13 @@
-import { mutation, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api";
 
-async function requireUserId(ctx: MutationCtx): Promise<string> {
+interface AuthCtx {
+  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+}
+
+async function requireUserId(ctx: AuthCtx): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
   return identity.subject;
@@ -83,5 +88,29 @@ export const setTranscriptionFailed = internalMutation({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
     await ctx.db.patch(entryId, { transcriptionStatus: "failed" });
+  },
+});
+
+export const listInbox = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const userId = await requireUserId(ctx);
+    return await ctx.db
+      .query("entries")
+      .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
+      .order("desc")
+      .paginate(paginationOpts);
+  },
+});
+
+export const getUntriagedCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const entries = await ctx.db
+      .query("entries")
+      .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
+      .collect();
+    return entries.length;
   },
 });

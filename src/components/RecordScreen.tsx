@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { addPendingCapture } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
+import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
 
 export function RecordScreen() {
+  const untriagedCount = useQuery(api.entries.getUntriagedCount);
   const [view, setView] = useState<View>("voice-idle");
   const [micError, setMicError] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
@@ -106,6 +111,17 @@ export function RecordScreen() {
 
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center gap-4 p-6">
+      <Link
+        href="/inbox"
+        aria-label="Open inbox"
+        className="absolute left-6 top-6 flex items-center gap-1.5 rounded-full p-2 text-neutral-400 hover:text-neutral-600"
+      >
+        <InboxIcon />
+        {untriagedCount !== undefined && untriagedCount > 0 && (
+          <span className="text-sm">{untriagedCount}</span>
+        )}
+      </Link>
+
       <button
         onClick={() => setView("text")}
         aria-label="Switch to text capture"
@@ -130,48 +146,12 @@ export function RecordScreen() {
         ) : view === "voice-recording" ? (
           <StopIcon />
         ) : (
-          <MicIcon large />
+          <MicIcon size={40} />
         )}
       </button>
 
       {view === "saved" && <p className="text-sm text-neutral-500">Saved ✓</p>}
       {micError && <p className="text-sm text-red-500">{micError}</p>}
     </main>
-  );
-}
-
-function MicIcon({ large }: { large?: boolean }) {
-  const size = large ? 40 : 20;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="9" y="2" width="6" height="12" rx="3" />
-      <path d="M5 10a7 7 0 0 0 14 0" />
-      <path d="M12 19v3" />
-    </svg>
-  );
-}
-
-function StopIcon() {
-  return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
-function KeyboardIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="6" width="20" height="12" rx="2" />
-      <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12" />
-    </svg>
   );
 }
