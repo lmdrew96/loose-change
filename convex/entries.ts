@@ -36,14 +36,15 @@ async function createTextEntryHandler(
   });
 }
 
-async function listInboxHandler(
+async function listByStatusHandler(
   ctx: QueryCtx,
   userId: string,
+  status: Doc<"entries">["status"],
   paginationOpts: { numItems: number; cursor: string | null },
 ) {
   const result = await ctx.db
     .query("entries")
-    .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
+    .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", status))
     .order("desc")
     .paginate(paginationOpts);
 
@@ -55,6 +56,14 @@ async function listInboxHandler(
   );
 
   return { ...result, page };
+}
+
+async function listInboxHandler(
+  ctx: QueryCtx,
+  userId: string,
+  paginationOpts: { numItems: number; cursor: string | null },
+) {
+  return await listByStatusHandler(ctx, userId, "untriaged", paginationOpts);
 }
 
 async function getStatsHandler(ctx: QueryCtx, userId: string) {
@@ -182,6 +191,14 @@ export const listInbox = query({
   handler: async (ctx, { paginationOpts }) => {
     const userId = await requireUserId(ctx);
     return await listInboxHandler(ctx, userId, paginationOpts);
+  },
+});
+
+export const listKept = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const userId = await requireUserId(ctx);
+    return await listByStatusHandler(ctx, userId, "kept", paginationOpts);
   },
 });
 

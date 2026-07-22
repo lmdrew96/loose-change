@@ -5,16 +5,7 @@ import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import {
-  MicIcon,
-  KeyboardIcon,
-  ChatBubbleIcon,
-  ArrowLeftIcon,
-  SearchIcon,
-  LayersIcon,
-  ArchiveIcon,
-  SettingsIcon,
-} from "@/components/icons";
+import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon } from "@/components/icons";
 
 const PAGE_SIZE = 20;
 
@@ -25,16 +16,15 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   minute: "2-digit",
 });
 
-export function InboxScreen() {
+export function KeptScreen() {
   const { isAuthenticated } = useConvexAuth();
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const cursor = cursorStack[cursorStack.length - 1];
 
   const result = useQuery(
-    api.entries.listInbox,
+    api.entries.listKept,
     isAuthenticated ? { paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
   );
-  const untriagedCount = useQuery(api.entries.getUntriagedCount, isAuthenticated ? {} : "skip");
 
   function goNext() {
     if (!result || result.isDone) return;
@@ -48,30 +38,16 @@ export function InboxScreen() {
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
       <header className="mb-4 flex items-center justify-between">
-        <Link href="/" aria-label="Back to record" className="rounded-full p-2 text-beaver hover:text-gold">
+        <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
-        <h1 className="font-heading text-2xl">Inbox</h1>
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-sm text-beaver">{untriagedCount ?? ""}</span>
-          <Link href="/search" aria-label="Search" className="rounded-full p-2 text-beaver hover:text-gold">
-            <SearchIcon size={18} />
-          </Link>
-          <Link href="/triage" aria-label="Triage" className="rounded-full p-2 text-beaver hover:text-gold">
-            <LayersIcon size={18} />
-          </Link>
-          <Link href="/kept" aria-label="Kept" className="rounded-full p-2 text-beaver hover:text-gold">
-            <ArchiveIcon size={18} />
-          </Link>
-          <Link href="/settings" aria-label="Settings" className="rounded-full p-2 text-beaver hover:text-gold">
-            <SettingsIcon size={18} />
-          </Link>
-        </div>
+        <h1 className="font-heading text-2xl">Kept</h1>
+        <span className="w-5" />
       </header>
 
       <div className="flex-1 space-y-2">
         {result === undefined && <p className="text-sm text-beaver">Loading…</p>}
-        {result?.page.length === 0 && <p className="text-sm text-beaver">Nothing to triage.</p>}
+        {result?.page.length === 0 && <p className="text-sm text-beaver">Nothing kept yet.</p>}
         {result?.page.map((entry) => <EntryCard key={entry._id} entry={entry} />)}
       </div>
 
