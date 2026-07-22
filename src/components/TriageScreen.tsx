@@ -215,7 +215,11 @@ export function TriageScreen() {
       <p className="mt-2 text-center text-xs text-beaver">K keep · D discard</p>
 
       {undoTarget && (
-        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white"
+        >
           <span>Discarded</span>
           <button onClick={handleUndo} className="font-medium text-gold underline">
             Undo
@@ -223,7 +227,11 @@ export function TriageScreen() {
         </div>
       )}
       {toast && (
-        <div className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit rounded-full bg-olive px-4 py-2 text-sm text-white">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit rounded-full bg-olive px-4 py-2 text-sm text-white"
+        >
           {toast}
         </div>
       )}

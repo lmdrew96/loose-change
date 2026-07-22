@@ -65,7 +65,12 @@ export function SettingsScreen() {
           <div className="space-y-2">
             <div className="break-all rounded-lg border border-olive p-3 text-xs">{mcpUrl}</div>
             <div className="flex gap-2">
-              <button onClick={handleCopy} className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-jungle">
+              <button
+                onClick={handleCopy}
+                role="status"
+                aria-live="polite"
+                className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-jungle"
+              >
                 {copied ? "Copied ✓" : "Copy"}
               </button>
               <button onClick={handleRegenerate} className="rounded-lg bg-olive px-4 py-2 text-sm text-white">

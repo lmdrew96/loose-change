@@ -44,7 +44,7 @@ export function SearchScreen() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search your archive…"
-          className="w-full rounded-lg border border-olive bg-transparent px-3 py-2 text-sm text-neutral-100 outline-none placeholder:text-beaver/60 focus:border-gold"
+          className="w-full rounded-lg border border-olive bg-transparent px-3 py-2 text-sm text-neutral-100 outline-none placeholder:text-beaver focus:border-gold"
         />
       </form>
 

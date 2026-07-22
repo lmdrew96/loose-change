@@ -165,7 +165,7 @@ export function RecordScreen() {
           value={textValue}
           onChange={(e) => setTextValue(e.target.value)}
           placeholder="What's on your mind..."
-          className="mt-4 flex-1 resize-none bg-transparent text-lg outline-none placeholder:text-beaver/60"
+          className="mt-4 flex-1 resize-none bg-transparent text-lg outline-none placeholder:text-beaver"
         />
         <button
           onClick={saveText}

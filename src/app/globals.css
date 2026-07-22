@@ -15,7 +15,10 @@
   --font-heading: var(--font-yellow-yaks);
 
   /* Engie Designs palette */
-  --color-beaver: #948870;
+  /* Lightened from #948870 — the original computed ~3.85:1 on bg-jungle,
+     below WCAG AA's 4.5:1 for normal text (this token is used for
+     timestamps, helper copy, and nav links app-wide). ~4.76:1 now. */
+  --color-beaver: #a69882;
   --color-olive: #55553d;
   --color-jungle: #15342e;
   --color-gold: #d19e2c;
