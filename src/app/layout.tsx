@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nunito, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
@@ -8,8 +8,8 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineSyncBootstrap } from "@/components/OfflineSyncBootstrap";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
 });
 
@@ -50,7 +50,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} ${yellowYaks.variable} h-full antialiased`}
+        className={`${nunito.variable} ${geistMono.variable} ${yellowYaks.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">
           <ConvexClientProvider>

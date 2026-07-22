@@ -211,7 +211,7 @@ export function RecordScreen() {
         )}
       </div>
 
-      <h1 className="font-heading absolute top-6 left-1/2 -translate-x-1/2 text-3xl text-gold">
+      <h1 className="font-heading absolute top-6 left-1/2 -translate-x-1/2 text-4xl text-gold">
         Loose Change
       </h1>
 

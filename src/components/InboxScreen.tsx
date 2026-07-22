@@ -51,7 +51,7 @@ export function InboxScreen() {
         <Link href="/" aria-label="Back to record" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
-        <h1 className="font-heading text-2xl">Inbox</h1>
+        <h1 className="font-heading text-3xl">Inbox</h1>
         <div className="flex items-center gap-1">
           <span className="mr-1 text-sm text-beaver">{untriagedCount ?? ""}</span>
           <Link href="/search" aria-label="Search" className="rounded-full p-2 text-beaver hover:text-gold">
