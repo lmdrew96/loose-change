@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
+/* Loose Change is dark-only by design (see README) — no app-wide light
+   theme or toggle exists. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #15342e;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -18,13 +20,6 @@
   --color-jungle: #15342e;
   --color-gold: #d19e2c;
   --color-engineering: #b71007;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #15342e;
-    --foreground: #ededed;
-  }
 }
 
 body {

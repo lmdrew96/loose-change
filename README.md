@@ -22,7 +22,7 @@ Capture must never require a decision. No tagging, no titling, no categorizing a
 One primary action: a large central record button.
 
 - **Voice mode**: tap to start, tap to stop (no press-and-hold — needs to work one-handed while driving). Audio saves to local storage first, then background-syncs to Convex once connected. Never blocks on network. Instant "Saved ✓" feedback, returns to record button.
-- **Text mode**: small keyboard icon in a corner (secondary, doesn't compete with the record button). Swaps to a minimal text input — auto-focused cursor, single Save action, no formatting toolbar. Dim/dark mode is **default-on for this screen specifically**, regardless of app-wide theme, since it's built for typing in bed.
+- **Text mode**: small keyboard icon in a corner (secondary, doesn't compete with the record button). Swaps to a minimal text input — auto-focused cursor, single Save action, no formatting toolbar. Loose Change is dark-only by design app-wide (no light theme or toggle), which suits typing in bed as well as anywhere else.
 - Both modes write to the same entry schema, differentiated by `captureMode: "voice" | "text" | "chat"`.
 
 ### 2. Inbox
