@@ -184,7 +184,7 @@ export function RecordScreen() {
         <Link
           href="/inbox"
           aria-label="Open inbox"
-          className="flex items-center gap-1.5 rounded-full p-2 text-beaver hover:text-gold"
+          className="flex items-center gap-1.5 rounded-full p-3 text-beaver hover:text-gold"
         >
           <InboxIcon />
           {untriagedCount !== undefined && untriagedCount > 0 && (
@@ -203,7 +203,7 @@ export function RecordScreen() {
       <button
         onClick={() => setView("text")}
         aria-label="Switch to text capture"
-        className="absolute right-6 top-6 rounded-full p-2 text-beaver hover:text-gold"
+        className="absolute right-6 top-6 rounded-full p-3 text-beaver hover:text-gold"
       >
         <KeyboardIcon />
       </button>
