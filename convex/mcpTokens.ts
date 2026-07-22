@@ -2,14 +2,13 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUserId } from "./authHelpers";
 
-// Length is generous since this draws from Math.random() (Convex mutations
-// can't use Node's crypto — see runtime restrictions), not a real CSPRNG.
+// 20 random bytes -> 40 hex chars. Convex's default runtime (used by
+// mutations) supports the Web Crypto API even though Math.random() is
+// seeded/deterministic there, so this is a real CSPRNG.
 function generateToken(): string {
-  let token = "";
-  for (let i = 0; i < 6; i++) {
-    token += Math.random().toString(36).slice(2);
-  }
-  return token.slice(0, 40);
+  const bytes = new Uint8Array(20);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export const getOrCreateMcpToken = mutation({
