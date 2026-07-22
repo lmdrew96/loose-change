@@ -36,14 +36,28 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+// Notified whenever the pending-captures store changes, so the UI can show
+// a live count without polling IndexedDB on a timer.
+const pendingChangeListeners = new Set<() => void>();
+
+export function subscribePendingCaptures(listener: () => void): () => void {
+  pendingChangeListeners.add(listener);
+  return () => pendingChangeListeners.delete(listener);
+}
+
+function notifyPendingCapturesChanged(): void {
+  for (const listener of pendingChangeListeners) listener();
+}
+
 export async function addPendingCapture(capture: PendingCapture): Promise<void> {
   const db = await openDB();
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(capture);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  notifyPendingCapturesChanged();
 }
 
 export async function getPendingCaptures(): Promise<PendingCapture[]> {
@@ -58,12 +72,13 @@ export async function getPendingCaptures(): Promise<PendingCapture[]> {
 
 export async function deletePendingCapture(localId: string): Promise<void> {
   const db = await openDB();
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).delete(localId);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+  notifyPendingCapturesChanged();
 }
 
 // ── In-progress voice recordings ──────────────────────────────────────────

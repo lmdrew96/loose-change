@@ -10,8 +10,10 @@ import {
   clearDraftText,
   finalizeInProgressRecording,
   getDraftText,
+  getPendingCaptures,
   saveDraftText,
   startInProgressRecording,
+  subscribePendingCaptures,
 } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
 import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon } from "@/components/icons";
@@ -35,6 +37,7 @@ export function RecordScreen() {
   const [micError, setMicError] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
   const [textSaved, setTextSaved] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const pendingAppendsRef = useRef<Promise<void>[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -56,6 +59,17 @@ export function RecordScreen() {
     getDraftText().then((draft) => {
       if (draft) setTextValue(draft);
     });
+  }, []);
+
+  // Reflects captures still sitting in IndexedDB — either waiting for the
+  // network or stuck on a sync that keeps failing (syncEngine only
+  // console.errors those, so this is the one visible signal of that).
+  useEffect(() => {
+    function refresh() {
+      void getPendingCaptures().then((captures) => setPendingCount(captures.length));
+    }
+    refresh();
+    return subscribePendingCaptures(refresh);
   }, []);
 
   // Debounce-persist the draft as the user types, so it survives navigating
@@ -166,16 +180,21 @@ export function RecordScreen() {
 
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center gap-4 bg-jungle p-6">
-      <Link
-        href="/inbox"
-        aria-label="Open inbox"
-        className="absolute left-6 top-6 flex items-center gap-1.5 rounded-full p-2 text-beaver hover:text-gold"
-      >
-        <InboxIcon />
-        {untriagedCount !== undefined && untriagedCount > 0 && (
-          <span className="text-sm">{untriagedCount}</span>
+      <div className="absolute left-6 top-6 flex flex-col items-start gap-0.5">
+        <Link
+          href="/inbox"
+          aria-label="Open inbox"
+          className="flex items-center gap-1.5 rounded-full p-2 text-beaver hover:text-gold"
+        >
+          <InboxIcon />
+          {untriagedCount !== undefined && untriagedCount > 0 && (
+            <span className="text-sm">{untriagedCount}</span>
+          )}
+        </Link>
+        {pendingCount > 0 && (
+          <span className="pl-2 text-xs text-beaver">{pendingCount} pending sync</span>
         )}
-      </Link>
+      </div>
 
       <h1 className="font-heading absolute top-6 left-1/2 -translate-x-1/2 text-3xl text-gold">
         Loose Change
