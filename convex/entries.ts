@@ -3,30 +3,7 @@ import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-
-// ── Auth ─────────────────────────────────────────────────────────────────────
-// Two trust boundaries reach these functions: the web client (Clerk session,
-// userId derived from the JWT) and the MCP server (a separate Next.js route
-// with no Clerk session, gated instead by a shared secret + explicit userId).
-// Convex has no per-function ACLs beyond what the handler checks, and the
-// deployment URL/function names aren't secret (NEXT_PUBLIC_CONVEX_URL ships to
-// the browser) — so the mcp* functions below must check the secret themselves,
-// not just rely on the Next.js route in front of them.
-
-interface AuthCtx {
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
-}
-
-async function requireUserId(ctx: AuthCtx): Promise<string> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) throw new Error("Not authenticated");
-  return identity.subject;
-}
-
-function requireMcpSecret(secret: string): void {
-  const expected = process.env.MCP_SHARED_SECRET;
-  if (!expected || secret !== expected) throw new Error("Invalid MCP secret");
-}
+import { requireUserId, requireMcpSecret } from "./authHelpers";
 
 async function requireOwnedEntry(
   ctx: MutationCtx | QueryCtx,

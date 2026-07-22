@@ -1,18 +1,26 @@
 // Loose Change MCP endpoint — JSON-RPC 2.0 over HTTP, one server per token.
-// URL shape: /{token}/mcp, mirroring Tangle/pctx's convention. The token is a
-// coarse gate; the real auth boundary is the MCP_SHARED_SECRET check inside
-// each Convex mcp* function (see src/lib/mcp.ts for why both layers exist).
+// URL shape: /{token}/mcp, mirroring Tangle/pctx's convention. Each user gets
+// their own token from the Settings page (convex/mcpTokens.ts); this route
+// resolves it to a userId before dispatching any tool call.
 
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../convex/_generated/api";
 import { SERVER_INFO, TOOLS, ToolError, dispatchTool, err, ok } from "@/lib/mcp";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
+async function resolveUserId(token: string): Promise<string | null> {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) return null;
+  const convex = new ConvexHttpClient(url);
+  const resolved = await convex.query(api.mcpTokens.resolveMcpToken, { token });
+  return resolved?.userId ?? null;
+}
+
 export async function POST(req: Request, context: RouteContext) {
   const { token } = await context.params;
-  const expected = process.env.MCP_ACCESS_TOKEN;
-  if (!expected || token !== expected) {
-    return err(null, -32600, "Invalid token");
-  }
+  const userId = await resolveUserId(token);
+  if (!userId) return err(null, -32600, "Invalid token");
 
   let body: { method?: string; params?: unknown; id?: unknown };
   try {
@@ -46,7 +54,7 @@ export async function POST(req: Request, context: RouteContext) {
     if (!name) return err(id, -32602, "tools/call requires `name`");
 
     try {
-      const result = await dispatchTool(name, args ?? {});
+      const result = await dispatchTool(name, args ?? {}, userId);
       return ok(id, result);
     } catch (e) {
       if (e instanceof ToolError) return err(id, e.code, e.message);

@@ -31,4 +31,12 @@ export default defineSchema({
       searchField: "transcript",
       filterFields: ["userId", "status"],
     }),
+
+  mcpTokens: defineTable({
+    userId: v.string(),
+    token: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"]),
 });

@@ -8,8 +8,10 @@
  * @module
  */
 
+import type * as authHelpers from "../authHelpers.js";
 import type * as crons from "../crons.js";
 import type * as entries from "../entries.js";
+import type * as mcpTokens from "../mcpTokens.js";
 import type * as retention from "../retention.js";
 import type * as transcription from "../transcription.js";
 
@@ -20,8 +22,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  authHelpers: typeof authHelpers;
   crons: typeof crons;
   entries: typeof entries;
+  mcpTokens: typeof mcpTokens;
   retention: typeof retention;
   transcription: typeof transcription;
 }>;

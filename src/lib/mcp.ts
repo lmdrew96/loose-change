@@ -1,10 +1,12 @@
 // Loose Change MCP endpoint — JSON-RPC 2.0 over HTTP, hand-rolled (no SDK),
 // mirroring the same pattern used by Tangle/pctx elsewhere in the ecosystem.
-// Single-user app: auth is a shared secret (MCP_SHARED_SECRET) checked both
-// here and again inside each Convex mcp* function, since the Convex deployment
-// URL and function names aren't secret (NEXT_PUBLIC_CONVEX_URL ships to the
-// browser) — the route-level token is a coarse gate, the Convex-level secret
-// is the actual boundary.
+// Multi-user: the {token} path segment is a per-user credential (see
+// convex/mcpTokens.ts) resolved to a userId by the route handler before
+// dispatchTool is called. MCP_SHARED_SECRET is a second, separate layer —
+// it proves a call reached the mcp* Convex functions via this trusted server,
+// since the Convex deployment URL and function names aren't secret
+// (NEXT_PUBLIC_CONVEX_URL ships to the browser) and could otherwise be called
+// directly by anyone who knows a valid per-user token.
 
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
@@ -148,13 +150,10 @@ const asNumber = (v: unknown): number | undefined =>
 const asStatus = (v: unknown): Status | undefined =>
   typeof v === "string" && (STATUSES as readonly string[]).includes(v) ? (v as Status) : undefined;
 
-function mcpAuth(): { secret: string; userId: string } {
+function requiredSecret(): string {
   const secret = process.env.MCP_SHARED_SECRET;
-  const userId = process.env.LOOSE_CHANGE_USER_ID;
-  if (!secret || !userId) {
-    throw new ToolError(-32603, "MCP server is not configured (missing MCP_SHARED_SECRET or LOOSE_CHANGE_USER_ID)");
-  }
-  return { secret, userId };
+  if (!secret) throw new ToolError(-32603, "MCP server is not configured (missing MCP_SHARED_SECRET)");
+  return secret;
 }
 
 function convexClient(): ConvexHttpClient {
@@ -166,8 +165,9 @@ function convexClient(): ConvexHttpClient {
 export const dispatchTool = async (
   name: string,
   args: Record<string, unknown>,
+  userId: string,
 ): Promise<ReturnType<typeof textContent>> => {
-  const { secret, userId } = mcpAuth();
+  const secret = requiredSecret();
   const convex = convexClient();
 
   switch (name) {
