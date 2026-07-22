@@ -69,6 +69,19 @@ export function TriageScreen() {
     flashToast(`Copied — paste into ${destination === "kindling" ? "Kindling" : "ControlledChaos"}`);
   }
 
+  // Batch-triage speedup for desktop sessions (README frames Triage as a
+  // batch/later activity). No text inputs live on this screen, so no need to
+  // guard against typing focus.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "k" || e.key === "K") void handleKeep();
+      else if (e.key === "d" || e.key === "D") void handleDiscard();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
       <header className="mb-4 flex items-center justify-between">
@@ -139,6 +152,7 @@ export function TriageScreen() {
           → CC
         </button>
       </div>
+      <p className="mt-2 text-center text-xs text-beaver">K keep · D discard</p>
 
       {undoTarget && (
         <div className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white">
