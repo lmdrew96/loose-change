@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 
@@ -22,6 +22,7 @@ export function SearchScreen() {
     api.entries.searchEntries,
     isAuthenticated && submittedQuery ? { query: submittedQuery } : "skip",
   );
+  const undoDiscard = useMutation(api.entries.undoDiscard);
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
@@ -70,6 +71,14 @@ export function SearchScreen() {
                 {timestampFormatter.format(entry.createdAt)} · {entry.status}
               </p>
             </div>
+            {entry.status === "discarded" && (
+              <button
+                onClick={() => undoDiscard({ entryId: entry._id })}
+                className="shrink-0 text-xs font-medium text-gold underline"
+              >
+                Undo
+              </button>
+            )}
           </div>
         ))}
       </div>
