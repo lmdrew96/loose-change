@@ -26,6 +26,7 @@ export default defineSchema({
   })
     .index("by_user_status_createdAt", ["userId", "status", "createdAt"])
     .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_status_createdAt", ["status", "createdAt"])
     .searchIndex("search_transcript", {
       searchField: "transcript",
       filterFields: ["userId", "status"],
