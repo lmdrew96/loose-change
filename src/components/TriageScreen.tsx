@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -37,6 +37,47 @@ export function TriageScreen() {
 
   const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Swipe (right = Keep, left = Discard) alongside the four buttons, which
+  // stay as the explicit fallback affordance.
+  const SWIPE_THRESHOLD = 80;
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [flying, setFlying] = useState<"keep" | "discard" | null>(null);
+  const dragStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    setDragX(0);
+    setFlying(null);
+    dragStartX.current = null;
+  }, [entry?._id]);
+
+  function onCardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (flying) return;
+    dragStartX.current = e.clientX;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onCardPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null) return;
+    setDragX(e.clientX - dragStartX.current);
+  }
+
+  function onCardPointerUp() {
+    if (dragStartX.current === null) return;
+    dragStartX.current = null;
+    setDragging(false);
+    if (dragX > SWIPE_THRESHOLD) {
+      setFlying("keep");
+      setTimeout(() => void handleKeep(), 180);
+    } else if (dragX < -SWIPE_THRESHOLD) {
+      setFlying("discard");
+      setTimeout(() => void handleDiscard(), 180);
+    } else {
+      setDragX(0);
+    }
+  }
 
   function flashToast(message: string) {
     setToast(message);
@@ -98,7 +139,26 @@ export function TriageScreen() {
         ) : !entry ? (
           <p className="text-sm text-beaver">Nothing left to triage.</p>
         ) : (
-          <div className="w-full max-w-md rounded-lg border border-olive p-6">
+          <div
+            onPointerDown={onCardPointerDown}
+            onPointerMove={onCardPointerMove}
+            onPointerUp={onCardPointerUp}
+            onPointerCancel={onCardPointerUp}
+            style={{
+              transform: `translateX(${flying === "keep" ? 400 : flying === "discard" ? -400 : dragX}px) rotate(${
+                (flying === "keep" ? 400 : flying === "discard" ? -400 : dragX) / 20
+              }deg)`,
+              opacity: flying ? 0 : 1,
+              transition: dragging ? "none" : "transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease",
+            }}
+            className={`w-full max-w-md cursor-grab touch-none rounded-lg border p-6 active:cursor-grabbing ${
+              dragX > SWIPE_THRESHOLD / 2 || flying === "keep"
+                ? "border-gold"
+                : dragX < -SWIPE_THRESHOLD / 2 || flying === "discard"
+                  ? "border-engineering"
+                  : "border-olive"
+            }`}
+          >
             <div className="mb-3 flex items-center gap-2 text-beaver">
               {entry.captureMode === "voice" ? (
                 <MicIcon size={16} />
