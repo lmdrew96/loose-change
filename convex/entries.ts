@@ -23,11 +23,28 @@ async function requireOwnedEntry(
 
 // ── Shared handlers (called from both the Clerk-authed and MCP-authed paths) ─
 
+// A capture already synced under this localId, if any. Sync retries after a
+// lost response are the expected caller — see schema.ts.
+async function findByLocalId(
+  ctx: MutationCtx,
+  userId: string,
+  localId: string | undefined,
+): Promise<Doc<"entries"> | null> {
+  if (localId === undefined) return null;
+  return await ctx.db
+    .query("entries")
+    .withIndex("by_user_localId", (q) => q.eq("userId", userId).eq("localId", localId))
+    .unique();
+}
+
 async function createTextEntryHandler(
   ctx: MutationCtx,
   userId: string,
-  args: { transcript: string; capturedAt: number; captureMode: "text" | "chat" },
+  args: { transcript: string; capturedAt: number; captureMode: "text" | "chat"; localId?: string },
 ) {
+  const existing = await findByLocalId(ctx, userId, args.localId);
+  if (existing) return existing._id;
+
   return await ctx.db.insert("entries", {
     userId,
     captureMode: args.captureMode,
@@ -38,6 +55,7 @@ async function createTextEntryHandler(
     promotedTo: null,
     discardedAt: null,
     audioDeletedAt: null,
+    localId: args.localId,
     createdAt: args.capturedAt,
   });
 }
@@ -163,6 +181,7 @@ export const createTextEntry = mutation({
     transcript: v.string(),
     capturedAt: v.number(),
     captureMode: v.union(v.literal("text"), v.literal("chat")),
+    localId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -174,9 +193,20 @@ export const createVoiceEntry = mutation({
   args: {
     audioStorageId: v.id("_storage"),
     capturedAt: v.number(),
+    localId: v.optional(v.string()),
   },
-  handler: async (ctx, { audioStorageId, capturedAt }) => {
+  handler: async (ctx, { audioStorageId, capturedAt, localId }) => {
     const userId = await requireUserId(ctx);
+
+    const existing = await findByLocalId(ctx, userId, localId);
+    if (existing) {
+      // A retry re-uploads the blob before calling this, so the one we were
+      // just handed is a second copy of audio the original entry already
+      // references. Drop it rather than orphaning it in storage.
+      if (existing.audioStorageId !== audioStorageId) await ctx.storage.delete(audioStorageId);
+      return existing._id;
+    }
+
     const entryId = await ctx.db.insert("entries", {
       userId,
       captureMode: "voice",
@@ -187,6 +217,7 @@ export const createVoiceEntry = mutation({
       promotedTo: null,
       discardedAt: null,
       audioDeletedAt: null,
+      localId,
       createdAt: capturedAt,
     });
     await ctx.scheduler.runAfter(0, internal.transcription.transcribeEntry, { entryId });

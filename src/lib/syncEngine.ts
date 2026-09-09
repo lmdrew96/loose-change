@@ -24,11 +24,15 @@ export async function syncPendingCaptures(): Promise<void> {
 }
 
 async function syncOne(capture: PendingCapture): Promise<void> {
+  // localId travels with every capture so the mutation is idempotent: if a
+  // previous attempt committed but its response was lost, the retry resolves
+  // to the same entry instead of creating a duplicate.
   if (capture.captureMode === "text") {
     await convexClient.mutation(api.entries.createTextEntry, {
       transcript: capture.transcript,
       capturedAt: capture.capturedAt,
       captureMode: "text",
+      localId: capture.localId,
     });
     return;
   }
@@ -44,5 +48,6 @@ async function syncOne(capture: PendingCapture): Promise<void> {
   await convexClient.mutation(api.entries.createVoiceEntry, {
     audioStorageId: storageId,
     capturedAt: capture.capturedAt,
+    localId: capture.localId,
   });
 }

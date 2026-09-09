@@ -37,11 +37,18 @@ export default defineSchema({
     // Absent on rows triaged before this field existed; retention falls back
     // to createdAt for those, which is the pre-existing behaviour.
     triagedAt: v.optional(v.number()),
+    // Client-generated id for a queued capture, carried through so a sync
+    // retry is idempotent. Without it, a mutation that commits but whose
+    // response is lost (mobile handoff, tab killed) re-syncs into a duplicate
+    // entry. Absent on entries created before this existed and on MCP
+    // captures, which have no offline queue.
+    localId: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_user_status_createdAt", ["userId", "status", "createdAt"])
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_user_localId", ["userId", "localId"])
     .searchIndex("search_transcript", {
       searchField: "transcript",
       filterFields: ["userId", "status"],
