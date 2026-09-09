@@ -4,27 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Doc } from "../../convex/_generated/dataModel";
-import {
-  MicIcon,
-  KeyboardIcon,
-  ChatBubbleIcon,
-  ArrowLeftIcon,
-  SearchIcon,
-  LayersIcon,
-  ArchiveIcon,
-  SettingsIcon,
-} from "@/components/icons";
+import { ArrowLeftIcon, SearchIcon, LayersIcon, ArchiveIcon, SettingsIcon } from "@/components/icons";
+import { EntryCard } from "@/components/EntryCard";
 import { formatCount } from "@/lib/format";
 
 const PAGE_SIZE = 20;
-
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 export function InboxScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -63,7 +47,7 @@ export function InboxScreen() {
           <Link href="/triage" aria-label="Triage" className="rounded-full p-2 text-beaver hover:text-gold">
             <LayersIcon size={18} />
           </Link>
-          <Link href="/kept" aria-label="Kept" className="rounded-full p-2 text-beaver hover:text-gold">
+          <Link href="/kept" aria-label="Archive" className="rounded-full p-2 text-beaver hover:text-gold">
             <ArchiveIcon size={18} />
           </Link>
           <Link href="/settings" aria-label="Settings" className="rounded-full p-2 text-beaver hover:text-gold">
@@ -87,29 +71,5 @@ export function InboxScreen() {
         </button>
       </div>
     </main>
-  );
-}
-
-function EntryCard({ entry }: { entry: Doc<"entries"> & { audioUrl: string | null } }) {
-  const preview =
-    entry.transcript ??
-    (entry.transcriptionStatus === "failed" ? "(couldn't transcribe — audio available)" : "Transcribing…");
-
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-olive p-3">
-      <div className="mt-0.5 shrink-0 text-beaver">
-        {entry.captureMode === "voice" ? (
-          <MicIcon size={16} />
-        ) : entry.captureMode === "text" ? (
-          <KeyboardIcon size={16} />
-        ) : (
-          <ChatBubbleIcon size={16} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-sm">{preview}</p>
-        <p className="mt-1 text-xs text-beaver">{timestampFormatter.format(entry.createdAt)}</p>
-      </div>
-    </div>
   );
 }

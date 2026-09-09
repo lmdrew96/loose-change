@@ -32,7 +32,11 @@ One primary action: a large central record button.
 - Each card: transcript preview, timestamp, small icon for capture mode (mic / keyboard / chat-bubble).
 - Untriaged count shown as a plain number. No red badges, no streaks, no "you're behind" framing.
 
-### 3. Triage (one entry at a time)
+### 3. Archive (`/kept`)
+
+Reverse-chronological, paginated, filtered by status: **Kept**, **Sent on** (promoted), **Discarded**. Every card expands in place to show the full transcript and — for voice entries whose audio hasn't aged out — a player. Discarded entries can be restored here for as long as their 30-day window is open.
+
+### 4. Triage (one entry at a time)
 
 Four fixed-position actions, always in the same place:
 
@@ -42,6 +46,8 @@ Four fixed-position actions, always in the same place:
 | **Discard** | Soft-delete, 30-day undo window (not instant-gone) |
 | **Send to Kindling** | Hands off transcript text; Kindling's own MCP does the actual write |
 | **Send to CC** | Hands off transcript text; ControlledChaos's own MCP does the actual write |
+
+Plus **Skip for now** (or `S`), which advances without deciding — a skipped entry stays untriaged and comes back next session. Keyboard: `K` keep, `D` discard, `S` skip.
 
 Untimed. No countdown. No forced review cadence — if you never triage, the inbox just sits there.
 

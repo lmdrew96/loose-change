@@ -4,31 +4,42 @@ import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Doc, Id } from "../../convex/_generated/dataModel";
-import { MicIcon, KeyboardIcon, ChatBubbleIcon, ArrowLeftIcon, TrashIcon } from "@/components/icons";
+import type { Id } from "../../convex/_generated/dataModel";
+import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
+import { EntryCard } from "@/components/EntryCard";
 
 const PAGE_SIZE = 20;
 
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
+// Promoted and discarded entries used to have no browse surface at all — you
+// could only reach them by guessing a search term. Kept stays the default
+// since it's the archive you actually revisit.
+const TABS = [
+  { status: "kept", label: "Kept", empty: "Nothing kept yet." },
+  { status: "promoted", label: "Sent on", empty: "Nothing sent to another app yet." },
+  { status: "discarded", label: "Discarded", empty: "Nothing discarded." },
+] as const;
+
+type Status = (typeof TABS)[number]["status"];
 
 export function KeptScreen() {
   const { isAuthenticated } = useConvexAuth();
+  const [status, setStatus] = useState<Status>("kept");
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const cursor = cursorStack[cursorStack.length - 1];
 
   const result = useQuery(
-    api.entries.listKept,
-    isAuthenticated ? { paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
+    api.entries.listByStatus,
+    isAuthenticated ? { status, paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
   );
 
   const discardEntry = useMutation(api.entries.discardEntry);
   const undoDiscard = useMutation(api.entries.undoDiscard);
   const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
+
+  function selectStatus(next: Status) {
+    setStatus(next);
+    setCursorStack([null]);
+  }
 
   async function handleDelete(entryId: Id<"entries">) {
     await discardEntry({ entryId });
@@ -51,21 +62,60 @@ export function KeptScreen() {
     setCursorStack((stack) => (stack.length > 1 ? stack.slice(0, -1) : stack));
   }
 
+  const activeTab = TABS.find((t) => t.status === status)!;
+
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
       <header className="mb-4 flex items-center justify-between">
         <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
           <ArrowLeftIcon />
         </Link>
-        <h1 className="font-heading text-2xl">Kept</h1>
+        <h1 className="font-heading text-2xl">Archive</h1>
         <span className="w-5" />
       </header>
 
+      <div className="mb-4 flex gap-2" role="tablist" aria-label="Filter by status">
+        {TABS.map((tab) => (
+          <button
+            key={tab.status}
+            role="tab"
+            aria-selected={tab.status === status}
+            onClick={() => selectStatus(tab.status)}
+            className={`rounded-full px-3 py-1.5 text-sm ${
+              tab.status === status ? "bg-gold font-medium text-jungle" : "text-beaver hover:text-gold"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 space-y-2">
         {result === undefined && <p className="text-sm text-beaver">Loading…</p>}
-        {result?.page.length === 0 && <p className="text-sm text-beaver">Nothing kept yet.</p>}
+        {result?.page.length === 0 && <p className="text-sm text-beaver">{activeTab.empty}</p>}
         {result?.page.map((entry) => (
-          <EntryCard key={entry._id} entry={entry} onDelete={() => void handleDelete(entry._id)} />
+          <EntryCard
+            key={entry._id}
+            entry={entry}
+            actions={
+              status === "discarded" ? (
+                <button
+                  onClick={() => void undoDiscard({ entryId: entry._id })}
+                  className="shrink-0 text-xs font-medium text-gold underline"
+                >
+                  Restore
+                </button>
+              ) : (
+                <button
+                  onClick={() => void handleDelete(entry._id)}
+                  aria-label="Delete"
+                  className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
+                >
+                  <TrashIcon size={16} />
+                </button>
+              )
+            }
+          />
         ))}
       </div>
 
@@ -91,42 +141,5 @@ export function KeptScreen() {
         </div>
       )}
     </main>
-  );
-}
-
-function EntryCard({
-  entry,
-  onDelete,
-}: {
-  entry: Doc<"entries"> & { audioUrl: string | null };
-  onDelete: () => void;
-}) {
-  const preview =
-    entry.transcript ??
-    (entry.transcriptionStatus === "failed" ? "(couldn't transcribe — audio available)" : "Transcribing…");
-
-  return (
-    <div className="flex items-start gap-3 rounded-lg border border-olive p-3">
-      <div className="mt-0.5 shrink-0 text-beaver">
-        {entry.captureMode === "voice" ? (
-          <MicIcon size={16} />
-        ) : entry.captureMode === "text" ? (
-          <KeyboardIcon size={16} />
-        ) : (
-          <ChatBubbleIcon size={16} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-sm">{preview}</p>
-        <p className="mt-1 text-xs text-beaver">{timestampFormatter.format(entry.createdAt)}</p>
-      </div>
-      <button
-        onClick={onDelete}
-        aria-label="Delete"
-        className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
-      >
-        <TrashIcon size={16} />
-      </button>
-    </div>
   );
 }

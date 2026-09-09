@@ -180,7 +180,16 @@ async function searchHandler(
     const base = q.search("transcript", searchQuery).eq("userId", userId);
     return status ? base.eq("status", status) : base;
   });
-  return await search.take(limit);
+  const results = await search.take(limit);
+
+  // Same shape as the list queries, so a search hit can be rendered by the
+  // same card — including playing its audio back.
+  return await Promise.all(
+    results.map(async (entry) => ({
+      ...entry,
+      audioUrl: entry.audioStorageId ? await ctx.storage.getUrl(entry.audioStorageId) : null,
+    })),
+  );
 }
 
 // ── Client-facing functions (Clerk auth) ─────────────────────────────────────
@@ -278,6 +287,20 @@ export const listKept = query({
   handler: async (ctx, { paginationOpts }) => {
     const userId = await requireUserId(ctx);
     return await listByStatusHandler(ctx, userId, "kept", paginationOpts);
+  },
+});
+
+// Backs the Archive screen's status filter. Promoted and discarded entries had
+// no browse surface at all before this — they were reachable only by guessing
+// a search term.
+export const listByStatus = query({
+  args: {
+    status: v.union(v.literal("kept"), v.literal("promoted"), v.literal("discarded")),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { status, paginationOpts }) => {
+    const userId = await requireUserId(ctx);
+    return await listByStatusHandler(ctx, userId, status, paginationOpts);
   },
 });
 

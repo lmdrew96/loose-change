@@ -4,14 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon, TrashIcon } from "@/components/icons";
-
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
+import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
+import { EntryCard } from "@/components/EntryCard";
 
 export function SearchScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -56,40 +50,29 @@ export function SearchScreen() {
         {submittedQuery !== "" && results === undefined && <p className="text-sm text-beaver">Searching…</p>}
         {submittedQuery !== "" && results?.length === 0 && <p className="text-sm text-beaver">No matches.</p>}
         {results?.map((entry) => (
-          <div key={entry._id} className="flex items-start gap-3 rounded-lg border border-olive p-3">
-            <div className="mt-0.5 shrink-0 text-beaver">
-              {entry.captureMode === "voice" ? (
-                <MicIcon size={16} />
-              ) : entry.captureMode === "text" ? (
-                <KeyboardIcon size={16} />
-              ) : (
-                <ChatBubbleIcon size={16} />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-sm">{entry.transcript}</p>
-              <p className="mt-1 text-xs text-beaver">
-                {timestampFormatter.format(entry.createdAt)} · {entry.status}
-              </p>
-            </div>
-            {entry.status === "discarded" && (
-              <button
-                onClick={() => undoDiscard({ entryId: entry._id })}
-                className="shrink-0 text-xs font-medium text-gold underline"
-              >
-                Undo
-              </button>
-            )}
-            {entry.status === "kept" && (
-              <button
-                onClick={() => discardEntry({ entryId: entry._id })}
-                aria-label="Delete"
-                className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
-              >
-                <TrashIcon size={16} />
-              </button>
-            )}
-          </div>
+          <EntryCard
+            key={entry._id}
+            entry={entry}
+            showStatus
+            actions={
+              entry.status === "discarded" ? (
+                <button
+                  onClick={() => void undoDiscard({ entryId: entry._id })}
+                  className="shrink-0 text-xs font-medium text-gold underline"
+                >
+                  Undo
+                </button>
+              ) : entry.status === "kept" ? (
+                <button
+                  onClick={() => void discardEntry({ entryId: entry._id })}
+                  aria-label="Delete"
+                  className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
+                >
+                  <TrashIcon size={16} />
+                </button>
+              ) : null
+            }
+          />
         ))}
       </div>
     </main>
