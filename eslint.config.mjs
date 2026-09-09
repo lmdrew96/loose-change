@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Convex regenerates these on every schema/function change, so their
+    // stale eslint-disable directives can't be fixed in place.
+    "convex/_generated/**",
   ]),
 ]);
 

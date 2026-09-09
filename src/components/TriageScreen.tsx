@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon, PlayIcon, PauseIcon } from "@/components/icons";
 
 export function TriageScreen() {
@@ -37,47 +37,6 @@ export function TriageScreen() {
 
   const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-
-  // Swipe (right = Keep, left = Discard) alongside the four buttons, which
-  // stay as the explicit fallback affordance.
-  const SWIPE_THRESHOLD = 80;
-  const [dragX, setDragX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [flying, setFlying] = useState<"keep" | "discard" | null>(null);
-  const dragStartX = useRef<number | null>(null);
-
-  useEffect(() => {
-    setDragX(0);
-    setFlying(null);
-    dragStartX.current = null;
-  }, [entry?._id]);
-
-  function onCardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (flying) return;
-    dragStartX.current = e.clientX;
-    setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-
-  function onCardPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (dragStartX.current === null) return;
-    setDragX(e.clientX - dragStartX.current);
-  }
-
-  function onCardPointerUp() {
-    if (dragStartX.current === null) return;
-    dragStartX.current = null;
-    setDragging(false);
-    if (dragX > SWIPE_THRESHOLD) {
-      setFlying("keep");
-      setTimeout(() => void handleKeep(), 180);
-    } else if (dragX < -SWIPE_THRESHOLD) {
-      setFlying("discard");
-      setTimeout(() => void handleDiscard(), 180);
-    } else {
-      setDragX(0);
-    }
-  }
 
   function flashToast(message: string) {
     setToast(message);
@@ -139,46 +98,15 @@ export function TriageScreen() {
         ) : !entry ? (
           <p className="text-sm text-beaver">Nothing left to triage.</p>
         ) : (
-          <div
-            onPointerDown={onCardPointerDown}
-            onPointerMove={onCardPointerMove}
-            onPointerUp={onCardPointerUp}
-            onPointerCancel={onCardPointerUp}
-            style={{
-              transform: `translateX(${flying === "keep" ? 400 : flying === "discard" ? -400 : dragX}px) rotate(${
-                (flying === "keep" ? 400 : flying === "discard" ? -400 : dragX) / 20
-              }deg)`,
-              opacity: flying ? 0 : 1,
-              transition: dragging ? "none" : "transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease",
-            }}
-            className={`w-full max-w-md cursor-grab touch-none rounded-lg border p-6 active:cursor-grabbing ${
-              dragX > SWIPE_THRESHOLD / 2 || flying === "keep"
-                ? "border-gold"
-                : dragX < -SWIPE_THRESHOLD / 2 || flying === "discard"
-                  ? "border-engineering"
-                  : "border-olive"
-            }`}
-          >
-            <div className="mb-3 flex items-center gap-2 text-beaver">
-              {entry.captureMode === "voice" ? (
-                <MicIcon size={16} />
-              ) : entry.captureMode === "text" ? (
-                <KeyboardIcon size={16} />
-              ) : (
-                <ChatBubbleIcon size={16} />
-              )}
-              <span className="text-xs">{new Date(entry.createdAt).toLocaleString()}</span>
-            </div>
-            <p className="whitespace-pre-wrap text-base">
-              {entry.transcript ??
-                (entry.transcriptionStatus === "failed"
-                  ? "(couldn't transcribe — audio available)"
-                  : "Transcribing…")}
-            </p>
-            {entry.captureMode === "voice" && entry.audioUrl && (
-              <AudioPlayer key={entry._id} src={entry.audioUrl} />
-            )}
-          </div>
+          /* Keyed on the entry id so React remounts on advance — that resets
+             the card's drag state for free, instead of an effect reaching in
+             to zero it out after the fact. */
+          <TriageCard
+            key={entry._id}
+            entry={entry}
+            onKeep={handleKeep}
+            onDiscard={handleDiscard}
+          />
         )}
       </div>
 
@@ -236,6 +164,98 @@ export function TriageScreen() {
         </div>
       )}
     </main>
+  );
+}
+
+type TriageEntry = Doc<"entries"> & { audioUrl: string | null };
+
+// Swipe right = Keep, left = Discard, alongside the four buttons which stay as
+// the explicit fallback affordance. Drag state lives here rather than in the
+// parent so remounting on a new entry resets it — see the key at the call site.
+const SWIPE_THRESHOLD = 80;
+
+function TriageCard({
+  entry,
+  onKeep,
+  onDiscard,
+}: {
+  entry: TriageEntry;
+  onKeep: () => void | Promise<void>;
+  onDiscard: () => void | Promise<void>;
+}) {
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [flying, setFlying] = useState<"keep" | "discard" | null>(null);
+  const dragStartX = useRef<number | null>(null);
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (flying) return;
+    dragStartX.current = e.clientX;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX.current === null) return;
+    setDragX(e.clientX - dragStartX.current);
+  }
+
+  function onPointerUp() {
+    if (dragStartX.current === null) return;
+    dragStartX.current = null;
+    setDragging(false);
+    if (dragX > SWIPE_THRESHOLD) {
+      setFlying("keep");
+      setTimeout(() => void onKeep(), 180);
+    } else if (dragX < -SWIPE_THRESHOLD) {
+      setFlying("discard");
+      setTimeout(() => void onDiscard(), 180);
+    } else {
+      setDragX(0);
+    }
+  }
+
+  const offset = flying === "keep" ? 400 : flying === "discard" ? -400 : dragX;
+  const intent =
+    dragX > SWIPE_THRESHOLD / 2 || flying === "keep"
+      ? "keep"
+      : dragX < -SWIPE_THRESHOLD / 2 || flying === "discard"
+        ? "discard"
+        : null;
+
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{
+        transform: `translateX(${offset}px) rotate(${offset / 20}deg)`,
+        opacity: flying ? 0 : 1,
+        transition: dragging ? "none" : "transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease",
+      }}
+      className={`w-full max-w-md cursor-grab touch-none rounded-lg border p-6 active:cursor-grabbing ${
+        intent === "keep" ? "border-gold" : intent === "discard" ? "border-engineering" : "border-olive"
+      }`}
+    >
+      <div className="mb-3 flex items-center gap-2 text-beaver">
+        {entry.captureMode === "voice" ? (
+          <MicIcon size={16} />
+        ) : entry.captureMode === "text" ? (
+          <KeyboardIcon size={16} />
+        ) : (
+          <ChatBubbleIcon size={16} />
+        )}
+        <span className="text-xs">{new Date(entry.createdAt).toLocaleString()}</span>
+      </div>
+      <p className="whitespace-pre-wrap text-base">
+        {entry.transcript ??
+          (entry.transcriptionStatus === "failed"
+            ? "(couldn't transcribe — audio available)"
+            : "Transcribing…")}
+      </p>
+      {entry.captureMode === "voice" && entry.audioUrl && <AudioPlayer src={entry.audioUrl} />}
+    </div>
   );
 }
 
