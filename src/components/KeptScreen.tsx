@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -23,7 +24,17 @@ type Status = (typeof TABS)[number]["status"];
 
 export function KeptScreen() {
   const { isAuthenticated } = useConvexAuth();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<Status>("kept");
+
+  // The weekly reminder deep-links to one specific entry. It may sit well past
+  // the first page of the archive, so it's fetched directly and pinned above
+  // the list rather than hunted for in it.
+  const highlightedId = searchParams.get("entry") as Id<"entries"> | null;
+  const highlighted = useQuery(
+    api.entries.getEntry,
+    isAuthenticated && highlightedId ? { entryId: highlightedId } : "skip",
+  );
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
   const cursor = cursorStack[cursorStack.length - 1];
 
@@ -90,10 +101,19 @@ export function KeptScreen() {
         ))}
       </div>
 
+      {highlighted && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs text-beaver">From your reminder</p>
+          <EntryCard entry={highlighted} initiallyExpanded showStatus />
+        </div>
+      )}
+
       <div className="flex-1 space-y-2">
         {result === undefined && <p className="text-sm text-beaver">Loading…</p>}
         {result?.page.length === 0 && <p className="text-sm text-beaver">{activeTab.empty}</p>}
-        {result?.page.map((entry) => (
+        {result?.page
+          .filter((entry) => entry._id !== highlightedId)
+          .map((entry) => (
           <EntryCard
             key={entry._id}
             entry={entry}

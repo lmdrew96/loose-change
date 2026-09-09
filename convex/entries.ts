@@ -304,6 +304,21 @@ export const listByStatus = query({
   },
 });
 
+// Backs the reminder deep-link: the notification names one entry, which may
+// be well past the first page of the archive, so it's fetched directly rather
+// than hoped for in a list.
+export const getEntry = query({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    const userId = await requireUserId(ctx);
+    const entry = await requireOwnedEntry(ctx, userId, entryId);
+    return {
+      ...entry,
+      audioUrl: entry.audioStorageId ? await ctx.storage.getUrl(entry.audioStorageId) : null,
+    };
+  },
+});
+
 export const getUntriagedCount = query({
   args: {},
   handler: async (ctx) => {

@@ -69,6 +69,8 @@ export const getRandomKeptEntry = internalQuery({
       .take(REMINDER_POOL);
     if (kept.length === 0) return null;
     const pick = kept[Math.floor(Math.random() * kept.length)];
-    return { transcript: pick.transcript };
+    // The id travels with the push so tapping it can open this exact entry
+    // rather than dumping the user in the archive to go find it.
+    return { entryId: pick._id, transcript: pick.transcript };
   },
 });

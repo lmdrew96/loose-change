@@ -91,14 +91,25 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Reminder pushes carry a JSON payload ({ title, body }) — see convex/push.ts.
+// Reminder pushes carry { title, body, entryId } — see convex/push.ts.
 self.addEventListener("push", (event) => {
   if (!event.data) return;
-  const { title, body } = event.data.json();
-  event.waitUntil(self.registration.showNotification(title, { body, icon: "/icons/icon-192.png" }));
+  const { title, body, entryId } = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      data: { entryId },
+    }),
+  );
 });
 
+// Open the entry the notification was about. It used to open /search, which
+// presents an empty input — so the one idea the reminder existed to resurface
+// was the one thing the screen didn't show you.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow("/search"));
+  const entryId = event.notification.data?.entryId;
+  const url = entryId ? `/kept?entry=${encodeURIComponent(entryId)}` : "/kept";
+  event.waitUntil(self.clients.openWindow(url));
 });

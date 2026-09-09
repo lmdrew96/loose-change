@@ -28,6 +28,7 @@ export const sendReminders = internalAction({
       const payload = JSON.stringify({
         title: "Loose Change",
         body: entry.transcript ?? "You kept an idea — take another look?",
+        entryId: entry.entryId,
       });
 
       try {
