@@ -14,21 +14,28 @@ export function TriageScreen() {
     isAuthenticated ? {} : "skip",
     { initialNumItems: 1 },
   );
-  const entry = results[0];
 
-  // A page can reactively shrink to zero items (e.g. the entry we just kept/
-  // discarded no longer matches) while more untriaged entries still exist
-  // further down the index — Convex signals this as canLoadMore with an
-  // empty page rather than auto-advancing. Keep pulling until we land on a
-  // real entry or genuinely exhaust the query.
+  // Position is tracked explicitly rather than always reading results[0],
+  // because Skip has to advance without mutating anything. Triaging an entry
+  // still removes it from the query reactively, which shifts the next entry
+  // into the current index on its own — so cursor only ever moves on Skip.
+  const [cursor, setCursor] = useState(0);
+  const [skipped, setSkipped] = useState(0);
+  const entry = results[cursor];
+
+  // Covers both "skipped past the end of what's loaded" and the case where a
+  // page reactively shrinks out from under us (the entry we just kept no
+  // longer matches the query, but more untriaged entries exist further down
+  // the index — Convex reports CanLoadMore with a short page rather than
+  // auto-advancing). One trigger for both, so they can't fight.
   useEffect(() => {
-    if (status === "CanLoadMore" && results.length === 0) {
-      loadMore(1);
-    }
-  }, [status, results.length, loadMore]);
+    if (cursor >= results.length && status === "CanLoadMore") loadMore(1);
+  }, [cursor, results.length, status, loadMore]);
 
   const loading =
-    status === "LoadingFirstPage" || status === "LoadingMore" || (status === "CanLoadMore" && results.length === 0);
+    status === "LoadingFirstPage" ||
+    status === "LoadingMore" ||
+    (cursor >= results.length && status === "CanLoadMore");
 
   const keepEntry = useMutation(api.entries.keepEntry);
   const discardEntry = useMutation(api.entries.discardEntry);
@@ -37,6 +44,15 @@ export function TriageScreen() {
 
   const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Deliberately does not mutate: a skipped entry stays untriaged and comes
+  // back next session. Being able to say "not now" is the whole point — one
+  // undecidable entry used to block everything behind it.
+  function handleSkip() {
+    if (!entry) return;
+    setCursor((c) => c + 1);
+    setSkipped((n) => n + 1);
+  }
 
   function flashToast(message: string) {
     setToast(message);
@@ -77,6 +93,7 @@ export function TriageScreen() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "k" || e.key === "K") void handleKeep();
       else if (e.key === "d" || e.key === "D") void handleDiscard();
+      else if (e.key === "s" || e.key === "S") handleSkip();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -96,7 +113,28 @@ export function TriageScreen() {
         {loading ? (
           <p className="text-sm text-beaver">Loading…</p>
         ) : !entry ? (
-          <p className="text-sm text-beaver">Nothing left to triage.</p>
+          <div className="text-center">
+            <p className="text-sm text-beaver">
+              {skipped > 0 ? "That's everything else." : "Nothing left to triage."}
+            </p>
+            {skipped > 0 && (
+              <>
+                <p className="mt-1 text-sm text-beaver">
+                  {skipped === 1 ? "1 skipped entry is" : `${skipped} skipped entries are`} still in
+                  your inbox.
+                </p>
+                <button
+                  onClick={() => {
+                    setCursor(0);
+                    setSkipped(0);
+                  }}
+                  className="mt-3 text-sm text-gold underline"
+                >
+                  Go back through them
+                </button>
+              </>
+            )}
+          </div>
         ) : (
           /* Keyed on the entry id so React remounts on advance — that resets
              the card's drag state for free, instead of an effect reaching in
@@ -140,7 +178,14 @@ export function TriageScreen() {
           → CC
         </button>
       </div>
-      <p className="mt-2 text-center text-xs text-beaver">K keep · D discard</p>
+      <button
+        onClick={handleSkip}
+        disabled={!entry}
+        className="mt-2 self-center rounded-full px-4 py-2 text-sm text-beaver hover:text-gold disabled:opacity-30"
+      >
+        Skip for now →
+      </button>
+      <p className="mt-1 text-center text-xs text-beaver">K keep · D discard · S skip</p>
 
       {undoTarget && (
         <div
