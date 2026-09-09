@@ -89,11 +89,12 @@ Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the R
 | Tool | Purpose |
 |---|---|
 | `lc_list_inbox` | Paginated, untriaged entries, newest first |
+| `lc_list_kept` | Paginated, kept entries (the archive), newest first |
 | `lc_get_entry` | Full entry: transcript, audio ref, timestamp, capture mode |
 | `lc_search` | Full-text search across kept/archived entries |
 | `lc_keep` | Mark an entry kept |
 | `lc_discard` | Soft-delete (starts the 30-day undo window) |
-| `lc_undo_discard` | Restore a discarded entry |
+| `lc_undo_discard` | Restore a discarded entry to the status it was discarded from |
 | `lc_mark_promoted` | Flag an entry as sent elsewhere + record destination |
 | `lc_get_stats` | Untriaged count, keep/discard/promote breakdown — informational only, no gamification |
 | `lc_capture_text` | Capture a thought directly from a chat conversation (`captureMode: "chat"`), skipping the app entirely |

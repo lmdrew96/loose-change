@@ -49,7 +49,21 @@ export const TOOLS = [
           type: "string",
           description: "Pagination cursor from a previous call's continueCursor. Omit for the first page.",
         },
-        limit: { type: "number", description: "Max entries to return. Default 20." },
+        limit: { type: "number", description: "Max entries to return. Default 20, max 100." },
+      },
+    },
+  },
+  {
+    name: "lc_list_kept",
+    description: "Paginated, kept entries (the archive), newest first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cursor: {
+          type: "string",
+          description: "Pagination cursor from a previous call's continueCursor. Omit for the first page.",
+        },
+        limit: { type: "number", description: "Max entries to return. Default 20, max 100." },
       },
     },
   },
@@ -70,7 +84,7 @@ export const TOOLS = [
       properties: {
         query: { type: "string" },
         status: { type: "string", enum: ["untriaged", "kept", "discarded", "promoted"] },
-        limit: { type: "number", description: "Default 20." },
+        limit: { type: "number", description: "Default 20, max 100." },
       },
       required: ["query"],
     },
@@ -95,7 +109,10 @@ export const TOOLS = [
   },
   {
     name: "lc_undo_discard",
-    description: "Restore a discarded entry back to untriaged.",
+    description:
+      "Restore a discarded entry to the status it was discarded from — untriaged if it was " +
+      "discarded during triage, kept if it was deleted from the archive. The response reports " +
+      "where it actually landed.",
     inputSchema: {
       type: "object",
       properties: { entry_id: { type: "string" } },
@@ -121,7 +138,9 @@ export const TOOLS = [
   },
   {
     name: "lc_get_stats",
-    description: "Untriaged count and keep/discard/promote breakdown. Informational only, no gamification.",
+    description:
+      "Untriaged count and keep/discard/promote breakdown. Counts are capped at 500 per status; " +
+      "`capped: true` means at least one status hit that ceiling. Informational only, no gamification.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -156,6 +175,17 @@ const asDestination = (v: unknown): Destination | undefined =>
 const asString = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 const asNumber = (v: unknown): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
+// Upper bound on any caller-supplied page size. Without it a confused client
+// asking for 50,000 rows blows the Convex read limit and the tool just fails.
+const MAX_LIMIT = 100;
+const DEFAULT_LIMIT = 20;
+
+const asLimit = (v: unknown): number => {
+  const n = asNumber(v);
+  if (n === undefined || n < 1) return DEFAULT_LIMIT;
+  return Math.min(Math.floor(n), MAX_LIMIT);
+};
+
 const asStatus = (v: unknown): Status | undefined =>
   typeof v === "string" && (STATUSES as readonly string[]).includes(v) ? (v as Status) : undefined;
 
@@ -184,7 +214,16 @@ export const dispatchTool = async (
       const result = await convex.query(api.entries.mcpListInbox, {
         secret,
         userId,
-        paginationOpts: { numItems: asNumber(args.limit) ?? 20, cursor: asString(args.cursor) ?? null },
+        paginationOpts: { numItems: asLimit(args.limit), cursor: asString(args.cursor) ?? null },
+      });
+      return textContent(result);
+    }
+
+    case "lc_list_kept": {
+      const result = await convex.query(api.entries.mcpListKept, {
+        secret,
+        userId,
+        paginationOpts: { numItems: asLimit(args.limit), cursor: asString(args.cursor) ?? null },
       });
       return textContent(result);
     }
@@ -208,7 +247,7 @@ export const dispatchTool = async (
         userId,
         query,
         status: asStatus(args.status),
-        limit: asNumber(args.limit),
+        limit: asLimit(args.limit),
       });
       return textContent({ results });
     }
@@ -230,8 +269,12 @@ export const dispatchTool = async (
     case "lc_undo_discard": {
       const entryId = asString(args.entry_id);
       if (!entryId) throw new ToolError(-32602, "lc_undo_discard requires entry_id");
-      await convex.mutation(api.entries.mcpUndoDiscard, { secret, userId, entryId: entryId as Id<"entries"> });
-      return textContent({ entry_id: entryId, status: "untriaged" });
+      const status = await convex.mutation(api.entries.mcpUndoDiscard, {
+        secret,
+        userId,
+        entryId: entryId as Id<"entries">,
+      });
+      return textContent({ entry_id: entryId, status });
     }
 
     case "lc_mark_promoted": {

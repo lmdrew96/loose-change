@@ -316,7 +316,7 @@ export const undoDiscard = mutation({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
     const userId = await requireUserId(ctx);
-    await undoDiscardHandler(ctx, userId, entryId);
+    return await undoDiscardHandler(ctx, userId, entryId);
   },
 });
 
@@ -352,6 +352,14 @@ export const mcpListInbox = query({
   handler: async (ctx, { secret, userId, paginationOpts }) => {
     requireMcpSecret(secret);
     return await listInboxHandler(ctx, userId, paginationOpts);
+  },
+});
+
+export const mcpListKept = query({
+  args: { secret: v.string(), userId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { secret, userId, paginationOpts }) => {
+    requireMcpSecret(secret);
+    return await listByStatusHandler(ctx, userId, "kept", paginationOpts);
   },
 });
 
@@ -401,7 +409,9 @@ export const mcpUndoDiscard = mutation({
   args: { secret: v.string(), userId: v.string(), entryId: v.id("entries") },
   handler: async (ctx, { secret, userId, entryId }) => {
     requireMcpSecret(secret);
-    await undoDiscardHandler(ctx, userId, entryId);
+    // Returns where the entry actually landed — undo restores to whatever it
+    // was discarded from, which isn't always "untriaged".
+    return await undoDiscardHandler(ctx, userId, entryId);
   },
 });
 
