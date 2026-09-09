@@ -16,6 +16,7 @@ export function SettingsScreen() {
   const regenerateMcpToken = useMutation(api.mcpTokens.regenerateMcpToken);
   const [token, setToken] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
   const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
   const subscribePush = useMutation(api.pushData.subscribe);
@@ -61,6 +62,7 @@ export function SettingsScreen() {
   async function handleRegenerate() {
     const newToken = await regenerateMcpToken({});
     setToken(newToken);
+    setConfirmingRegenerate(false);
   }
 
   async function handleTogglePush() {
@@ -158,10 +160,40 @@ export function SettingsScreen() {
               >
                 {copyState === "copied" ? "Copied ✓" : "Copy"}
               </button>
-              <button onClick={handleRegenerate} className="rounded-lg bg-olive px-4 py-2 text-sm text-white">
-                Regenerate
-              </button>
+              {/* The one action here that can't be undone: every configured
+                  MCP client stops working the moment the old token dies. Worth
+                  a confirm, unlike Copy or Sign out (which you can just do
+                  again). */}
+              {confirmingRegenerate ? (
+                <>
+                  <button
+                    onClick={handleRegenerate}
+                    className="rounded-lg bg-engineering px-4 py-2 text-sm text-white"
+                  >
+                    Yes, regenerate
+                  </button>
+                  <button
+                    onClick={() => setConfirmingRegenerate(false)}
+                    className="rounded-lg px-4 py-2 text-sm text-beaver hover:text-neutral-100"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmingRegenerate(true)}
+                  className="rounded-lg bg-olive px-4 py-2 text-sm text-white"
+                >
+                  Regenerate
+                </button>
+              )}
             </div>
+            {confirmingRegenerate && (
+              <p className="text-sm text-beaver">
+                This replaces your URL. Any MCP client using the old one stops working until you paste
+                the new URL in.
+              </p>
+            )}
             {/* A button isn't a live region — announce from a sibling so a
                 screen reader hears the outcome, not a relabelled control. */}
             <p role="status" aria-live="polite" className="min-h-5 text-sm text-beaver">
