@@ -223,3 +223,41 @@ describe("expired discards are purged", () => {
     expect(await t.run((ctx) => ctx.db.get(keptId))).not.toBeNull();
   });
 });
+
+describe("capped scans still make progress", () => {
+  test("freshly-expired audio is cleaned even behind a wall of already-cleaned rows", async () => {
+    const t = convexTest(schema, modules);
+    const old = Date.now() - 300 * DAY_MS;
+
+    // 20 rows that were cleaned long ago. In ascending createdAt order these
+    // sit in front of the entry we actually care about.
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 20; i++) {
+        await ctx.db.insert("entries", {
+          userId: "user_owner",
+          captureMode: "voice",
+          transcript: `cleaned ${i}`,
+          audioStorageId: null,
+          transcriptionStatus: "done",
+          status: "kept",
+          promotedTo: null,
+          discardedAt: null,
+          audioDeletedAt: old + i,
+          triagedAt: old + i,
+          createdAt: old + i,
+        });
+      }
+    });
+
+    const justExpired = Date.now() - THIRTY_DAYS_MS - DAY_MS;
+    const entryId = await seedVoiceEntry(t, "user_owner", {
+      createdAt: justExpired,
+      triagedAt: justExpired,
+      status: "kept",
+    });
+
+    await t.mutation(internal.retention.deleteExpiredAudio, {});
+
+    expect((await t.run((ctx) => ctx.db.get(entryId)))?.audioStorageId).toBeNull();
+  });
+});

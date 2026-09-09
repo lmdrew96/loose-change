@@ -5,6 +5,12 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, requireMcpSecret } from "./authHelpers";
 
+// Ceiling on the count/stats queries. Both exist to display a number, not to
+// return rows, so past this point an exact figure isn't worth an unbounded
+// scan — they report `capped: true` and the UI renders "500+". Convex caps a
+// single function's reads, and this app is designed to accumulate forever.
+const COUNT_CAP = 500;
+
 async function requireOwnedEntry(
   ctx: MutationCtx | QueryCtx,
   userId: string,
@@ -66,14 +72,20 @@ async function listInboxHandler(
   return await listByStatusHandler(ctx, userId, "untriaged", paginationOpts);
 }
 
-async function getStatsHandler(ctx: QueryCtx, userId: string) {
-  const all = await ctx.db
-    .query("entries")
-    .withIndex("by_user_createdAt", (q) => q.eq("userId", userId))
-    .collect();
+const ALL_STATUSES = ["untriaged", "kept", "discarded", "promoted"] as const;
 
-  const stats = { untriaged: 0, kept: 0, discarded: 0, promoted: 0 };
-  for (const entry of all) stats[entry.status]++;
+async function getStatsHandler(ctx: QueryCtx, userId: string) {
+  // One capped range per status rather than one collect() over the user's
+  // entire history — the old version was the largest scan in the codebase.
+  const stats = { untriaged: 0, kept: 0, discarded: 0, promoted: 0, capped: false };
+  for (const status of ALL_STATUSES) {
+    const rows = await ctx.db
+      .query("entries")
+      .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", status))
+      .take(COUNT_CAP + 1);
+    stats[status] = Math.min(rows.length, COUNT_CAP);
+    if (rows.length > COUNT_CAP) stats.capped = true;
+  }
   return stats;
 }
 
@@ -228,8 +240,11 @@ export const getUntriagedCount = query({
     const entries = await ctx.db
       .query("entries")
       .withIndex("by_user_status_createdAt", (q) => q.eq("userId", userId).eq("status", "untriaged"))
-      .collect();
-    return entries.length;
+      .take(COUNT_CAP + 1);
+    // `capped` lets the UI render "500+" rather than silently reporting a
+    // wrong number. Still a plain count with no pressure framing (see README's
+    // design constraints) — just an honest one.
+    return { count: Math.min(entries.length, COUNT_CAP), capped: entries.length > COUNT_CAP };
   },
 });
 

@@ -15,6 +15,7 @@ import {
   ArchiveIcon,
   SettingsIcon,
 } from "@/components/icons";
+import { formatCount } from "@/lib/format";
 
 const PAGE_SIZE = 20;
 
@@ -53,7 +54,9 @@ export function InboxScreen() {
         </Link>
         <h1 className="font-heading text-3xl">Inbox</h1>
         <div className="flex items-center gap-1">
-          <span className="mr-1 text-sm text-beaver">{untriagedCount ?? ""}</span>
+          <span className="mr-1 text-sm text-beaver">
+            {untriagedCount === undefined ? "" : formatCount(untriagedCount)}
+          </span>
           <Link href="/search" aria-label="Search" className="rounded-full p-2 text-beaver hover:text-gold">
             <SearchIcon size={18} />
           </Link>

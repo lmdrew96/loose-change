@@ -17,6 +17,7 @@ import {
   subscribePendingCaptures,
 } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
+import { formatCount } from "@/lib/format";
 import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon, XIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
@@ -202,8 +203,8 @@ export function RecordScreen() {
           className="flex items-center gap-1.5 rounded-full p-3 text-beaver hover:text-gold"
         >
           <InboxIcon />
-          {untriagedCount !== undefined && untriagedCount > 0 && (
-            <span className="text-sm">{untriagedCount}</span>
+          {untriagedCount !== undefined && untriagedCount.count > 0 && (
+            <span className="text-sm">{formatCount(untriagedCount)}</span>
           )}
         </Link>
         {pendingCount > 0 && (

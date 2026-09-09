@@ -8,6 +8,13 @@ const TRIAGED_STATUSES = ["kept", "discarded", "promoted"] as const;
 // single mutation past Convex's read limit.
 const PURGE_BATCH = 200;
 
+// Same idea for the audio scan. This one spans ALL users, and every row ever
+// triaged stays in the createdAt range forever even after its audio is gone —
+// so the scan grows monotonically while the useful work per run trends to
+// zero. Capping keeps it bounded; the job is idempotent and daily, so a
+// backlog drains over consecutive days.
+const AUDIO_BATCH = 500;
+
 export const deleteExpiredAudio = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -20,10 +27,16 @@ export const deleteExpiredAudio = internalMutation({
       // prefilter while the precise check happens below, which also keeps
       // rows triaged before triagedAt existed working (they fall back to
       // createdAt, i.e. exactly the old behaviour).
+      // Newest-first matters once the scan is capped. Ascending would hand
+      // back the oldest rows — which are precisely the ones whose audio was
+      // cleaned long ago — so the whole budget would go on skipping them and
+      // freshly-expired audio would never be reached. Descending starts at
+      // the rows that just crossed the cutoff, i.e. the actual work.
       const candidates = await ctx.db
         .query("entries")
         .withIndex("by_status_createdAt", (q) => q.eq("status", status).lt("createdAt", cutoff))
-        .collect();
+        .order("desc")
+        .take(AUDIO_BATCH);
 
       for (const entry of candidates) {
         if (entry.audioStorageId === null) continue;
