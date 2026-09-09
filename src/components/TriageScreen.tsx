@@ -80,9 +80,22 @@ export function TriageScreen() {
 
   async function handleSendTo(destination: "kindling" | "controlledchaos") {
     if (!entry?.transcript) return;
-    await navigator.clipboard.writeText(entry.transcript);
+    const label = destination === "kindling" ? "Kindling" : "ControlledChaos";
+
+    // The clipboard IS the handoff to the other app, so a failed copy must not
+    // mark the entry promoted — and must not fail silently either. writeText
+    // rejects on a non-secure context, a denied permission, or an iOS Safari
+    // gesture-window miss, and an unhandled rejection here just looks like a
+    // dead button.
+    try {
+      await navigator.clipboard.writeText(entry.transcript);
+    } catch {
+      flashToast(`Couldn't copy to clipboard — ${label} wasn't updated`);
+      return;
+    }
+
     await markPromoted({ entryId: entry._id, destination });
-    flashToast(`Copied — paste into ${destination === "kindling" ? "Kindling" : "ControlledChaos"}`);
+    flashToast(`Copied — paste into ${label}`);
   }
 
   // Batch-triage speedup for desktop sessions (README frames Triage as a

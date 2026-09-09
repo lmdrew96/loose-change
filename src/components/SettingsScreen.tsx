@@ -15,7 +15,7 @@ export function SettingsScreen() {
   const getOrCreateMcpToken = useMutation(api.mcpTokens.getOrCreateMcpToken);
   const regenerateMcpToken = useMutation(api.mcpTokens.regenerateMcpToken);
   const [token, setToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
   const subscribePush = useMutation(api.pushData.subscribe);
@@ -46,9 +46,16 @@ export function SettingsScreen() {
 
   async function handleCopy() {
     if (!mcpUrl) return;
-    await navigator.clipboard.writeText(mcpUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    // Same reasoning as Triage's handoff: writeText can reject, and an
+    // unhandled rejection reads as a dead button. The URL is selectable above,
+    // so say so rather than leaving the user stuck.
+    try {
+      await navigator.clipboard.writeText(mcpUrl);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+    setTimeout(() => setCopyState("idle"), 3000);
   }
 
   async function handleRegenerate() {
@@ -147,16 +154,20 @@ export function SettingsScreen() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                role="status"
-                aria-live="polite"
                 className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-jungle"
               >
-                {copied ? "Copied ✓" : "Copy"}
+                {copyState === "copied" ? "Copied ✓" : "Copy"}
               </button>
               <button onClick={handleRegenerate} className="rounded-lg bg-olive px-4 py-2 text-sm text-white">
                 Regenerate
               </button>
             </div>
+            {/* A button isn't a live region — announce from a sibling so a
+                screen reader hears the outcome, not a relabelled control. */}
+            <p role="status" aria-live="polite" className="min-h-5 text-sm text-beaver">
+              {copyState === "copied" && "Copied to clipboard."}
+              {copyState === "failed" && "Couldn't copy — select the URL above and copy it manually."}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-beaver">Loading…</p>
