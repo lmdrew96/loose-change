@@ -1,3 +1,5 @@
+import { createSerialQueue } from "./serialQueue";
+
 const DB_NAME = "loose-change";
 const DB_VERSION = 2;
 const STORE_NAME = "pendingCaptures";
@@ -93,12 +95,7 @@ export async function deletePendingCapture(localId: string): Promise<void> {
 // (b) two concurrent read-modify-writes on the same record could race and
 // silently drop a chunk. Chaining preserves call order regardless of how
 // long each individual IndexedDB operation takes.
-let recordingOpsChain: Promise<void> = Promise.resolve();
-
-function enqueueRecordingOp(op: () => Promise<void>): Promise<void> {
-  recordingOpsChain = recordingOpsChain.then(op);
-  return recordingOpsChain;
-}
+const enqueueRecordingOp = createSerialQueue();
 
 export function startInProgressRecording(localId: string, mimeType: string, startedAt: number): Promise<void> {
   return enqueueRecordingOp(() => startInProgressRecordingInternal(localId, mimeType, startedAt));
