@@ -56,8 +56,11 @@ entries {
   transcriptionStatus: "n/a" | "pending" | "done" | "failed"
   status: "untriaged" | "kept" | "discarded" | "promoted"
   promotedTo: "kindling" | "controlledchaos" | null
-  discardedAt: number | null       // used for the 30-day undo window
+  discardedAt: number | null       // when discarded; the 30-day purge measures from here
+  discardedFromStatus?: "untriaged" | "kept" | "promoted"  // what undo restores to
   audioDeletedAt: number | null    // set once retention cleanup removes the blob
+  triagedAt?: number               // when it left the untriaged pool; audio retention
+                                   // measures from here. Absent while untriaged.
   createdAt: number
 }
 ```
@@ -69,9 +72,13 @@ entries {
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
 - No retry-transcription UI in v1. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
 
-## Audio Retention
+## Retention
 
-Scheduled Convex function: once an entry's `status` is `kept`, `discarded`, or `promoted` **and** 30 days have elapsed, delete the audio blob and clear `audioStorageId`; keep the transcript. Untriaged entries retain audio indefinitely.
+Two scheduled Convex functions, both daily.
+
+**Audio** — once an entry's `status` is `kept`, `discarded`, or `promoted` **and** 30 days have elapsed *since it was triaged* (`triagedAt`, not `createdAt`), delete the audio blob and clear `audioStorageId`; keep the transcript. Untriaged entries retain audio indefinitely. Undoing a discard back to `untriaged` clears `triagedAt`; undoing back to `kept`/`promoted` restarts the 30 days, so an undo never costs you the audio.
+
+**Discarded entries** — 30 days after `discardedAt`, the entry is deleted outright (blob first, then the row). This is what closes the undo window: before it existed, "reversible for 30 days" had no closing edge and discarded memos stayed searchable forever.
 
 ## MCP Tools (`lc_` prefix)
 

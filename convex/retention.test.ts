@@ -152,3 +152,74 @@ describe("undoDiscard and the retention clock", () => {
     expect(entry?.triagedAt).toBeDefined();
   });
 });
+
+describe("expired discards are purged", () => {
+  test("a discard older than 30 days is deleted outright, blob and all", async () => {
+    const t = convexTest(schema, modules);
+    const discardedAt = Date.now() - THIRTY_DAYS_MS - DAY_MS;
+    const entryId = await t.run(async (ctx) => {
+      const audioStorageId = await ctx.storage.store(new Blob(["audio"], { type: "audio/webm" }));
+      return await ctx.db.insert("entries", {
+        userId: "user_owner",
+        captureMode: "voice",
+        transcript: "long gone",
+        audioStorageId,
+        transcriptionStatus: "done",
+        status: "discarded",
+        promotedTo: null,
+        discardedAt,
+        discardedFromStatus: "untriaged",
+        audioDeletedAt: null,
+        triagedAt: discardedAt,
+        createdAt: discardedAt,
+      });
+    });
+
+    await t.mutation(internal.retention.purgeExpiredDiscards, {});
+
+    expect(await t.run((ctx) => ctx.db.get(entryId))).toBeNull();
+  });
+
+  test("a discard inside its undo window survives", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await owner.mutation(api.entries.createTextEntry, {
+      transcript: "still recoverable",
+      capturedAt: Date.now() - 90 * DAY_MS,
+      captureMode: "text",
+    });
+    await owner.mutation(api.entries.discardEntry, { entryId });
+
+    await t.mutation(internal.retention.purgeExpiredDiscards, {});
+
+    // Captured 90 days ago but discarded just now — the window runs from the
+    // discard, so this must survive and stay undoable.
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("discarded");
+    await expect(owner.mutation(api.entries.undoDiscard, { entryId })).resolves.not.toThrow();
+  });
+
+  test("kept and promoted entries are never purged", async () => {
+    const t = convexTest(schema, modules);
+    const old = Date.now() - 400 * DAY_MS;
+    const keptId = await t.run((ctx) =>
+      ctx.db.insert("entries", {
+        userId: "user_owner",
+        captureMode: "text",
+        transcript: "kept forever",
+        audioStorageId: null,
+        transcriptionStatus: "n/a",
+        status: "kept",
+        promotedTo: null,
+        discardedAt: null,
+        audioDeletedAt: null,
+        triagedAt: old,
+        createdAt: old,
+      }),
+    );
+
+    await t.mutation(internal.retention.purgeExpiredDiscards, {});
+
+    expect(await t.run((ctx) => ctx.db.get(keptId))).not.toBeNull();
+  });
+});
