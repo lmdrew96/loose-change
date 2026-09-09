@@ -32,6 +32,35 @@ const RECORDING_TIMESLICE_MS = 5000;
 // to not hammer IndexedDB on every keystroke.
 const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
+function formatElapsed(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+// How long you've been recording. Without it there's no sense of scale at all
+// — you tap stop having no idea whether that was 20 seconds or four minutes,
+// which is exactly the thing an ADHD brain doesn't supply on its own.
+//
+// Its own component so it's mounted only while recording: state starts at zero
+// by construction instead of an effect reaching in to reset it. Ticks off a
+// start timestamp rather than accumulating, so a throttled background tab
+// doesn't drift.
+function RecordingTimer() {
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const id = setInterval(() => setElapsedMs(Date.now() - startedAt), 250);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <p aria-hidden className="font-mono text-sm text-beaver">
+      {formatElapsed(elapsedMs)}
+    </p>
+  );
+}
+
 export function RecordScreen() {
   const { isAuthenticated } = useConvexAuth();
   const untriagedCount = useQuery(api.entries.getUntriagedCount, isAuthenticated ? {} : "skip");
@@ -229,7 +258,7 @@ export function RecordScreen() {
         aria-label={view === "voice-recording" ? "Stop recording" : "Start recording"}
         className={`flex h-32 w-32 items-center justify-center rounded-full text-neutral-100 transition-colors ${
           view === "voice-recording"
-            ? "animate-pulse bg-engineering"
+            ? "bg-engineering motion-safe:animate-pulse"
             : view === "saved"
               ? "bg-gold text-jungle"
               : "bg-olive hover:bg-beaver"
@@ -243,6 +272,8 @@ export function RecordScreen() {
           <MicIcon size={40} />
         )}
       </button>
+
+      {view === "voice-recording" && <RecordingTimer />}
 
       {view === "voice-recording" && (
         <button

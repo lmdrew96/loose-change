@@ -10,6 +10,17 @@ import { formatCount } from "@/lib/format";
 
 const PAGE_SIZE = 20;
 
+// Icons carry a text label rather than an aria-label alone. Four adjacent
+// unlabelled glyphs is the worst case of a pattern that's hostile to anyone
+// who doesn't already know what each one means — and this row is the app's
+// only navigation.
+const NAV = [
+  { href: "/search", label: "Search", Icon: SearchIcon },
+  { href: "/triage", label: "Triage", Icon: LayersIcon },
+  { href: "/kept", label: "Archive", Icon: ArchiveIcon },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon },
+] as const;
+
 export function InboxScreen() {
   const { isAuthenticated } = useConvexAuth();
   const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
@@ -37,23 +48,21 @@ export function InboxScreen() {
           <ArrowLeftIcon />
         </Link>
         <h1 className="font-heading text-3xl">Inbox</h1>
-        <div className="flex items-center gap-1">
+        <nav className="flex items-end gap-1">
           <span className="mr-1 text-sm text-beaver">
             {untriagedCount === undefined ? "" : formatCount(untriagedCount)}
           </span>
-          <Link href="/search" aria-label="Search" className="rounded-full p-2 text-beaver hover:text-gold">
-            <SearchIcon size={18} />
-          </Link>
-          <Link href="/triage" aria-label="Triage" className="rounded-full p-2 text-beaver hover:text-gold">
-            <LayersIcon size={18} />
-          </Link>
-          <Link href="/kept" aria-label="Archive" className="rounded-full p-2 text-beaver hover:text-gold">
-            <ArchiveIcon size={18} />
-          </Link>
-          <Link href="/settings" aria-label="Settings" className="rounded-full p-2 text-beaver hover:text-gold">
-            <SettingsIcon size={18} />
-          </Link>
-        </div>
+          {NAV.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex w-14 flex-col items-center gap-0.5 rounded-lg py-1 text-beaver hover:text-gold"
+            >
+              <Icon size={18} />
+              <span className="text-[10px] leading-none">{label}</span>
+            </Link>
+          ))}
+        </nav>
       </header>
 
       <div className="flex-1 space-y-2">

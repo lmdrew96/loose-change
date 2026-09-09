@@ -30,3 +30,19 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* The README rules out autoplay animation. The recording pulse and the Triage
+   swipe transition are user-triggered rather than autoplay, but a sustained
+   pulse is still motion nobody asked for — so honour the OS preference. State
+   stays legible without it: the record button also changes colour and swaps to
+   a stop icon, and the swipe card carries a text label. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -309,6 +309,21 @@ function TriageCard({
         intent === "keep" ? "border-gold" : intent === "discard" ? "border-engineering" : "border-olive"
       }`}
     >
+      {/* Colour alone carried the swipe intent, which is both a
+          colour-blindness problem (gold vs red on dark green) and the only
+          thing that made the gesture discoverable at all. */}
+      <div
+        aria-hidden
+        className={`mb-2 h-5 text-sm font-medium transition-opacity ${
+          intent === "keep"
+            ? "text-gold opacity-100"
+            : intent === "discard"
+              ? "text-engineering opacity-100"
+              : "opacity-0"
+        }`}
+      >
+        {intent === "keep" ? "Keep →" : intent === "discard" ? "← Discard" : ""}
+      </div>
       <div className="mb-3 flex shrink-0 items-center gap-2 text-beaver">
         {entry.captureMode === "voice" ? (
           <MicIcon size={16} />
