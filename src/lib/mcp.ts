@@ -54,11 +54,19 @@ export const TOOLS = [
     },
   },
   {
-    name: "lc_list_kept",
-    description: "Paginated, kept entries (the archive), newest first.",
+    name: "lc_list_archive",
+    description:
+      "Paginated, triaged entries, newest first — the same three views the app's Archive screen " +
+      "offers: kept (default), promoted (sent to another app), or discarded (still inside their " +
+      "30-day undo window).",
     inputSchema: {
       type: "object",
       properties: {
+        status: {
+          type: "string",
+          enum: ["kept", "promoted", "discarded"],
+          description: "Which archive view to list. Default 'kept'.",
+        },
         cursor: {
           type: "string",
           description: "Pagination cursor from a previous call's continueCursor. Omit for the first page.",
@@ -186,6 +194,16 @@ const asLimit = (v: unknown): number => {
   return Math.min(Math.floor(n), MAX_LIMIT);
 };
 
+// The three triaged views the Archive screen offers. Untriaged is deliberately
+// absent — that's lc_list_inbox.
+const ARCHIVE_STATUSES = ["kept", "promoted", "discarded"] as const;
+type ArchiveStatus = (typeof ARCHIVE_STATUSES)[number];
+
+const asArchiveStatus = (v: unknown): ArchiveStatus | undefined =>
+  typeof v === "string" && (ARCHIVE_STATUSES as readonly string[]).includes(v)
+    ? (v as ArchiveStatus)
+    : undefined;
+
 const asStatus = (v: unknown): Status | undefined =>
   typeof v === "string" && (STATUSES as readonly string[]).includes(v) ? (v as Status) : undefined;
 
@@ -219,13 +237,15 @@ export const dispatchTool = async (
       return textContent(result);
     }
 
-    case "lc_list_kept": {
-      const result = await convex.query(api.entries.mcpListKept, {
+    case "lc_list_archive": {
+      const status = asArchiveStatus(args.status) ?? "kept";
+      const result = await convex.query(api.entries.mcpListByStatus, {
         secret,
         userId,
+        status,
         paginationOpts: { numItems: asLimit(args.limit), cursor: asString(args.cursor) ?? null },
       });
-      return textContent(result);
+      return textContent({ status, ...result });
     }
 
     case "lc_get_entry": {

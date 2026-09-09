@@ -319,6 +319,16 @@ export const getEntry = query({
   },
 });
 
+// getStatsHandler existed for lc_get_stats only; the app had no way to see the
+// same breakdown. Informational, per the README — no streaks, no gamification.
+export const getStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    return await getStatsHandler(ctx, userId);
+  },
+});
+
 export const getUntriagedCount = query({
   args: {},
   handler: async (ctx) => {
@@ -393,11 +403,19 @@ export const mcpListInbox = query({
   },
 });
 
-export const mcpListKept = query({
-  args: { secret: v.string(), userId: v.string(), paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { secret, userId, paginationOpts }) => {
+// Mirrors the Archive screen's tabs. Was hardcoded to "kept", which left
+// promoted and discarded entries reachable over MCP only by guessing a search
+// term — while the UI could browse them.
+export const mcpListByStatus = query({
+  args: {
+    secret: v.string(),
+    userId: v.string(),
+    status: v.union(v.literal("kept"), v.literal("promoted"), v.literal("discarded")),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { secret, userId, status, paginationOpts }) => {
     requireMcpSecret(secret);
-    return await listByStatusHandler(ctx, userId, "kept", paginationOpts);
+    return await listByStatusHandler(ctx, userId, status, paginationOpts);
   },
 });
 

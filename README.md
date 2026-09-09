@@ -96,15 +96,39 @@ Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the R
 | Tool | Purpose |
 |---|---|
 | `lc_list_inbox` | Paginated, untriaged entries, newest first |
-| `lc_list_kept` | Paginated, kept entries (the archive), newest first |
+| `lc_list_archive` | Paginated triaged entries: `kept` (default), `promoted`, or `discarded` |
 | `lc_get_entry` | Full entry: transcript, audio ref, timestamp, capture mode |
-| `lc_search` | Full-text search across kept/archived entries |
+| `lc_search` | Full-text search across transcripts, optionally filtered by status |
 | `lc_keep` | Mark an entry kept |
 | `lc_discard` | Soft-delete (starts the 30-day undo window) |
 | `lc_undo_discard` | Restore a discarded entry to the status it was discarded from |
 | `lc_mark_promoted` | Flag an entry as sent elsewhere + record destination |
 | `lc_get_stats` | Untriaged count, keep/discard/promote breakdown — informational only, no gamification |
 | `lc_capture_text` | Capture a thought directly from a chat conversation (`captureMode: "chat"`), skipping the app entirely |
+
+### MCP ↔ UI parity
+
+Anything the MCP tools can do is doable in the app, and vice versa. `src/lib/mcp.test.ts` asserts this — each tool declares where it lives in the UI, so adding one without a UI path fails the suite rather than shipping a capability only Claude can reach.
+
+| Tool | Where it is in the app |
+|---|---|
+| `lc_list_inbox` | Inbox |
+| `lc_list_archive` | Archive — Kept / Sent on / Discarded tabs |
+| `lc_get_entry` | Tap any card to expand it |
+| `lc_search` | Search — query box plus status filter chips |
+| `lc_keep` | Triage Keep, `K`, swipe right; Keep from Search |
+| `lc_discard` | Triage Discard, `D`, swipe left; trash from Archive and Search |
+| `lc_undo_discard` | Triage undo toast; Restore from Archive and Search |
+| `lc_mark_promoted` | Triage destination buttons, plus **More destinations** |
+| `lc_get_stats` | Settings → Your captures |
+| `lc_capture_text` | Record → text mode |
+
+Four capabilities are deliberately app-only:
+
+- **Voice capture** — binary audio doesn't fit JSON-RPC, and an MCP client has no microphone. `lc_capture_text` is the analogue.
+- **MCP token generate / regenerate** — it bootstraps MCP access, so exposing it over MCP would be circular.
+- **Push subscribe / unsubscribe** — a per-device browser permission, meaningless from a server-side client.
+- **Triage Skip** — moves an ephemeral cursor and persists nothing, so there's no state for a tool to change.
 
 ## Environment Variables
 

@@ -8,6 +8,20 @@ import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 
+// Mirrors lc_mark_promoted's destination enum exactly. The first two keep
+// their fixed positions in the action grid; the rest live behind a disclosure
+// so every destination the MCP tool accepts is also reachable here, without
+// adding buttons the README's four-fixed-actions constraint rules out.
+const DESTINATIONS = [
+  { id: "kindling", label: "Kindling", primary: true },
+  { id: "controlledchaos", label: "→ CC", full: "ControlledChaos", primary: true },
+  { id: "threadnotes", label: "ThreadNotes", primary: false },
+  { id: "tangle", label: "Tangle", primary: false },
+  { id: "chaospatch", label: "ChaosPatch", primary: false },
+] as const;
+
+type Destination = (typeof DESTINATIONS)[number]["id"];
+
 export function TriageScreen() {
   const { isAuthenticated } = useConvexAuth();
   const { results, status, loadMore } = usePaginatedQuery(
@@ -45,6 +59,7 @@ export function TriageScreen() {
 
   const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showAllDestinations, setShowAllDestinations] = useState(false);
 
   // Deliberately does not mutate: a skipped entry stays untriaged and comes
   // back next session. Being able to say "not now" is the whole point — one
@@ -79,9 +94,10 @@ export function TriageScreen() {
     setUndoTarget(null);
   }
 
-  async function handleSendTo(destination: "kindling" | "controlledchaos") {
+  async function handleSendTo(destination: Destination) {
     if (!entry?.transcript) return;
-    const label = destination === "kindling" ? "Kindling" : "ControlledChaos";
+    const meta = DESTINATIONS.find((d) => d.id === destination)!;
+    const label = "full" in meta ? meta.full : meta.label;
 
     // The clipboard IS the handoff to the other app, so a failed copy must not
     // mark the entry promoted — and must not fail silently either. writeText
@@ -192,13 +208,40 @@ export function TriageScreen() {
           → CC
         </button>
       </div>
-      <button
-        onClick={handleSkip}
-        disabled={!entry}
-        className="mt-2 self-center rounded-full px-4 py-2 text-sm text-beaver hover:text-gold disabled:opacity-30"
-      >
-        Skip for now →
-      </button>
+      {/* The other destinations lc_mark_promoted accepts. Behind a toggle so
+          the four primary actions keep their fixed positions, but nothing the
+          MCP tool can record is unreachable from the app. */}
+      {showAllDestinations && (
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {DESTINATIONS.filter((d) => !d.primary).map((d) => (
+            <button
+              key={d.id}
+              onClick={() => handleSendTo(d.id)}
+              disabled={!entry?.transcript}
+              className="rounded-lg border border-olive py-2 text-xs text-beaver hover:text-gold disabled:opacity-30"
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center justify-center gap-4">
+        <button
+          onClick={handleSkip}
+          disabled={!entry}
+          className="rounded-full px-4 py-2 text-sm text-beaver hover:text-gold disabled:opacity-30"
+        >
+          Skip for now →
+        </button>
+        <button
+          onClick={() => setShowAllDestinations((v) => !v)}
+          aria-expanded={showAllDestinations}
+          className="rounded-full px-4 py-2 text-sm text-beaver hover:text-gold"
+        >
+          {showAllDestinations ? "Fewer destinations" : "More destinations"}
+        </button>
+      </div>
       <p className="mt-1 text-center text-xs text-beaver">K keep · D discard · S skip</p>
 
       {undoTarget && (

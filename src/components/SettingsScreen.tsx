@@ -18,6 +18,7 @@ export function SettingsScreen() {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
+  const stats = useQuery(api.entries.getStats, isAuthenticated ? {} : "skip");
   const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
   const subscribePush = useMutation(api.pushData.subscribe);
   const unsubscribePush = useMutation(api.pushData.unsubscribe);
@@ -120,6 +121,39 @@ export function SettingsScreen() {
         >
           Sign out
         </button>
+      </section>
+
+      {/* The same breakdown lc_get_stats returns. Plain counts, no charts, no
+          streaks, no framing about being behind — the README rules those out,
+          and the point here is parity with the tool, not a dashboard. */}
+      <section className="mb-8">
+        <h2 className="mb-2 text-sm font-medium text-beaver">Your captures</h2>
+        {stats === undefined ? (
+          <p className="text-sm text-beaver">Loading…</p>
+        ) : (
+          <>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+              {(
+                [
+                  ["Untriaged", stats.untriaged],
+                  ["Kept", stats.kept],
+                  ["Sent on", stats.promoted],
+                  ["Discarded", stats.discarded],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="flex justify-between">
+                  <dt className="text-beaver">{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {stats.capped && (
+              <p className="mt-2 text-xs text-beaver">
+                Counts stop at 500 per status, so any 500 above means 500 or more.
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       {pushEnabled !== null && (
