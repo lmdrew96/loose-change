@@ -79,24 +79,37 @@ async function getStatsHandler(ctx: QueryCtx, userId: string) {
 
 async function keepHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
   await requireOwnedEntry(ctx, userId, entryId);
-  await ctx.db.patch(entryId, { status: "kept" });
+  await ctx.db.patch(entryId, { status: "kept", triagedAt: Date.now() });
 }
 
 async function discardHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
   const entry = await requireOwnedEntry(ctx, userId, entryId);
   const discardedFromStatus: "untriaged" | "kept" | "promoted" =
     entry.status === "discarded" ? "untriaged" : entry.status;
-  await ctx.db.patch(entryId, { status: "discarded", discardedAt: Date.now(), discardedFromStatus });
+  const now = Date.now();
+  await ctx.db.patch(entryId, {
+    status: "discarded",
+    discardedAt: now,
+    discardedFromStatus,
+    triagedAt: now,
+  });
 }
 
 async function undoDiscardHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
   const entry = await requireOwnedEntry(ctx, userId, entryId);
   if (entry.status !== "discarded") throw new Error("Entry is not discarded");
+  const restoredStatus = entry.discardedFromStatus ?? "untriaged";
   await ctx.db.patch(entryId, {
-    status: entry.discardedFromStatus ?? "untriaged",
+    status: restoredStatus,
     discardedAt: null,
     discardedFromStatus: undefined,
+    // Back in the untriaged pool means audio is retained indefinitely, so the
+    // retention clock is cleared. Restoring to a still-triaged status instead
+    // restarts that clock — undoing a mistake shouldn't cost you the audio
+    // just because the original triage was 29 days ago.
+    triagedAt: restoredStatus === "untriaged" ? undefined : Date.now(),
   });
+  return restoredStatus;
 }
 
 async function markPromotedHandler(
@@ -106,7 +119,7 @@ async function markPromotedHandler(
   destination: "kindling" | "controlledchaos",
 ) {
   await requireOwnedEntry(ctx, userId, entryId);
-  await ctx.db.patch(entryId, { status: "promoted", promotedTo: destination });
+  await ctx.db.patch(entryId, { status: "promoted", promotedTo: destination, triagedAt: Date.now() });
 }
 
 async function searchHandler(

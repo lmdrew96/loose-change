@@ -30,6 +30,13 @@ export default defineSchema({
       v.union(v.literal("untriaged"), v.literal("kept"), v.literal("promoted")),
     ),
     audioDeletedAt: v.union(v.number(), v.null()),
+    // When the entry left the untriaged pool (kept / discarded / promoted).
+    // Audio retention measures from here, not createdAt — the README's window
+    // is "30 days after triage", so an old memo triaged today keeps its audio
+    // for another 30 days rather than losing it at the next cron run.
+    // Absent on rows triaged before this field existed; retention falls back
+    // to createdAt for those, which is the pre-existing behaviour.
+    triagedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user_status_createdAt", ["userId", "status", "createdAt"])
