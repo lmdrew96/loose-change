@@ -55,7 +55,7 @@ entries {
   audioStorageId: string | null   // Convex storage ref; null for text/chat entries
   transcriptionStatus: "n/a" | "pending" | "done" | "failed"
   status: "untriaged" | "kept" | "discarded" | "promoted"
-  promotedTo: "kindling" | "controlledchaos" | null
+  promotedTo: "kindling" | "controlledchaos" | "threadnotes" | "tangle" | "chaospatch" | null
   discardedAt: number | null       // when discarded; the 30-day purge measures from here
   discardedFromStatus?: "untriaged" | "kept" | "promoted"  // what undo restores to
   audioDeletedAt: number | null    // set once retention cleanup removes the blob
@@ -82,7 +82,9 @@ Two scheduled Convex functions, both daily.
 
 ## MCP Tools (`lc_` prefix)
 
-Single-responsibility: `lc_mark_promoted` only logs where an entry went. It does not write into Kindling or ControlledChaos directly — that happens via their own MCP tools, called separately.
+Single-responsibility: `lc_mark_promoted` only logs where an entry went. It does not write into the destination app directly — that happens via that app's own MCP tools, called separately. Destinations: `kindling`, `controlledchaos`, `threadnotes`, `tangle`, `chaospatch`.
+
+Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the README's four-fixed-actions constraint rules out a button per destination. The other three are recorded via `lc_mark_promoted` from an MCP client.
 
 | Tool | Purpose |
 |---|---|

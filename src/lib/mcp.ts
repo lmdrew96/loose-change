@@ -105,13 +105,16 @@ export const TOOLS = [
   {
     name: "lc_mark_promoted",
     description:
-      "Flag an entry as sent elsewhere and record the destination. Does not write into Kindling or " +
-      "ControlledChaos itself — call their own MCP tools separately to do that.",
+      "Flag an entry as sent elsewhere and record the destination. Does not write into the destination " +
+      "app itself — call that app's own MCP tools separately to do that.",
     inputSchema: {
       type: "object",
       properties: {
         entry_id: { type: "string" },
-        destination: { type: "string", enum: ["kindling", "controlledchaos"] },
+        destination: {
+          type: "string",
+          enum: ["kindling", "controlledchaos", "threadnotes", "tangle", "chaospatch"],
+        },
       },
       required: ["entry_id", "destination"],
     },
@@ -143,6 +146,12 @@ export class ToolError extends Error {
 
 const STATUSES = ["untriaged", "kept", "discarded", "promoted"] as const;
 type Status = (typeof STATUSES)[number];
+
+const DESTINATIONS = ["kindling", "controlledchaos", "threadnotes", "tangle", "chaospatch"] as const;
+type Destination = (typeof DESTINATIONS)[number];
+
+const asDestination = (v: unknown): Destination | undefined =>
+  typeof v === "string" && (DESTINATIONS as readonly string[]).includes(v) ? (v as Destination) : undefined;
 
 const asString = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 const asNumber = (v: unknown): number | undefined =>
@@ -227,11 +236,11 @@ export const dispatchTool = async (
 
     case "lc_mark_promoted": {
       const entryId = asString(args.entry_id);
-      const destination = asString(args.destination);
-      if (!entryId || (destination !== "kindling" && destination !== "controlledchaos")) {
+      const destination = asDestination(args.destination);
+      if (!entryId || !destination) {
         throw new ToolError(
           -32602,
-          "lc_mark_promoted requires entry_id and destination ('kindling' | 'controlledchaos')",
+          `lc_mark_promoted requires entry_id and destination (${DESTINATIONS.join(" | ")})`,
         );
       }
       await convex.mutation(api.entries.mcpMarkPromoted, {

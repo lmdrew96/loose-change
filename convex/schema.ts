@@ -19,7 +19,17 @@ export default defineSchema({
       v.literal("discarded"),
       v.literal("promoted"),
     ),
-    promotedTo: v.union(v.literal("kindling"), v.literal("controlledchaos"), v.null()),
+    // Where a promoted entry was sent. Widening this to a plain string later
+    // is a pure superset — every existing value is already a lowercase string
+    // — so no backfill is needed if the ecosystem outgrows a closed union.
+    promotedTo: v.union(
+      v.literal("kindling"),
+      v.literal("controlledchaos"),
+      v.literal("threadnotes"),
+      v.literal("tangle"),
+      v.literal("chaospatch"),
+      v.null(),
+    ),
     discardedAt: v.union(v.number(), v.null()),
     // What status to restore on undoDiscard — discard is now reachable from
     // kept (not just untriaged via Triage), so a hardcoded "back to

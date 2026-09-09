@@ -11,6 +11,23 @@ import { requireUserId, requireMcpSecret } from "./authHelpers";
 // single function's reads, and this app is designed to accumulate forever.
 const COUNT_CAP = 500;
 
+// Ecosystem apps a capture can be handed off to. lc_mark_promoted only
+// records where it went — the destination app's own MCP does the actual write.
+const promotedToValidator = v.union(
+      v.literal("kindling"),
+      v.literal("controlledchaos"),
+      v.literal("threadnotes"),
+      v.literal("tangle"),
+      v.literal("chaospatch"),
+    );
+
+type PromotedTo =
+  | "kindling"
+  | "controlledchaos"
+  | "threadnotes"
+  | "tangle"
+  | "chaospatch";
+
 async function requireOwnedEntry(
   ctx: MutationCtx | QueryCtx,
   userId: string,
@@ -146,7 +163,7 @@ async function markPromotedHandler(
   ctx: MutationCtx,
   userId: string,
   entryId: Id<"entries">,
-  destination: "kindling" | "controlledchaos",
+  destination: PromotedTo,
 ) {
   await requireOwnedEntry(ctx, userId, entryId);
   await ctx.db.patch(entryId, { status: "promoted", promotedTo: destination, triagedAt: Date.now() });
@@ -306,7 +323,7 @@ export const undoDiscard = mutation({
 export const markPromoted = mutation({
   args: {
     entryId: v.id("entries"),
-    destination: v.union(v.literal("kindling"), v.literal("controlledchaos")),
+    destination: promotedToValidator,
   },
   handler: async (ctx, { entryId, destination }) => {
     const userId = await requireUserId(ctx);
@@ -393,7 +410,7 @@ export const mcpMarkPromoted = mutation({
     secret: v.string(),
     userId: v.string(),
     entryId: v.id("entries"),
-    destination: v.union(v.literal("kindling"), v.literal("controlledchaos")),
+    destination: promotedToValidator,
   },
   handler: async (ctx, { secret, userId, entryId, destination }) => {
     requireMcpSecret(secret);
