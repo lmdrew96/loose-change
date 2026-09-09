@@ -109,7 +109,7 @@ export function TriageScreen() {
         <span className="w-5" />
       </header>
 
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
         {loading ? (
           <p className="text-sm text-beaver">Loading…</p>
         ) : !entry ? (
@@ -279,11 +279,23 @@ function TriageCard({
         opacity: flying ? 0 : 1,
         transition: dragging ? "none" : "transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease",
       }}
-      className={`w-full max-w-md cursor-grab touch-none rounded-lg border p-6 active:cursor-grabbing ${
+      // touch-pan-y rather than touch-none: the browser keeps vertical
+      // scrolling (so a long transcript is readable) while horizontal panning
+      // stays ours. Pointer events still fire either way, so swipe works
+      // across the whole card — including the transcript, which is most of
+      // it. Stopping propagation on the text instead would have made the
+      // biggest target un-swipeable.
+      //
+      // The cap is viewport-relative, not max-h-full: body is min-h-full (so
+      // list screens can grow and scroll the page), which doesn't give a
+      // definite height for a percentage cap to resolve against. 60vh leaves
+      // room for the header, the action grid and the Skip affordance without
+      // any of them going below the fold.
+      className={`flex max-h-[60vh] w-full max-w-md cursor-grab touch-pan-y flex-col rounded-lg border p-6 active:cursor-grabbing ${
         intent === "keep" ? "border-gold" : intent === "discard" ? "border-engineering" : "border-olive"
       }`}
     >
-      <div className="mb-3 flex items-center gap-2 text-beaver">
+      <div className="mb-3 flex shrink-0 items-center gap-2 text-beaver">
         {entry.captureMode === "voice" ? (
           <MicIcon size={16} />
         ) : entry.captureMode === "text" ? (
@@ -293,13 +305,19 @@ function TriageCard({
         )}
         <span className="text-xs">{new Date(entry.createdAt).toLocaleString()}</span>
       </div>
-      <p className="whitespace-pre-wrap text-base">
-        {entry.transcript ??
-          (entry.transcriptionStatus === "failed"
-            ? "(couldn't transcribe — audio available)"
-            : "Transcribing…")}
-      </p>
-      {entry.captureMode === "voice" && entry.audioUrl && <AudioPlayer src={entry.audioUrl} />}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <p className="whitespace-pre-wrap text-base">
+          {entry.transcript ??
+            (entry.transcriptionStatus === "failed"
+              ? "(couldn't transcribe — audio available)"
+              : "Transcribing…")}
+        </p>
+      </div>
+      {entry.captureMode === "voice" && entry.audioUrl && (
+        <div className="shrink-0">
+          <AudioPlayer src={entry.audioUrl} />
+        </div>
+      )}
     </div>
   );
 }
