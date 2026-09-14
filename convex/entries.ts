@@ -277,6 +277,22 @@ export const getTranscriptionJob = internalQuery({
   },
 });
 
+// The webhook's entry id comes from a URL, so it's validated here rather than
+// trusted. Only an entry still waiting on this exact job gets a transcript.
+export const getEntryAwaitingTranscript = internalQuery({
+  args: { entryId: v.string(), jobId: v.string() },
+  handler: async (ctx, { entryId, jobId }) => {
+    const id = ctx.db.normalizeId("entries", entryId);
+    if (!id) return null;
+    const entry = await ctx.db.get(id);
+    if (!entry) return null;
+    if (entry.transcriptionStatus !== "pending" && entry.transcriptionStatus !== "timed_out") return null;
+    // Undefined when the webhook beat setTranscriptionJobId to the commit.
+    if (entry.transcriptionJobId !== undefined && entry.transcriptionJobId !== jobId) return null;
+    return id;
+  },
+});
+
 export const setTranscriptionJobId = internalMutation({
   args: { entryId: v.id("entries"), jobId: v.string() },
   handler: async (ctx, { entryId, jobId }) => {

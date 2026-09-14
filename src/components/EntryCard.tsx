@@ -19,8 +19,9 @@ function CaptureModeIcon({ mode }: { mode: Doc<"entries">["captureMode"] }) {
 export function transcriptPlaceholder(status: Doc<"entries">["transcriptionStatus"]): string {
   if (status === "failed") return "(couldn't transcribe — audio available)";
   // Not the same as failed: nothing is wrong with the audio, AssemblyAI just
-  // didn't finish inside the polling window. Worded so it doesn't read as
-  // broken, and paired with a retry once the card is expanded.
+  // hadn't finished (or its result couldn't be read) when we last checked.
+  // Worded so it doesn't read as broken, and paired with a retry once the
+  // card is expanded.
   if (status === "timed_out") return "(transcription didn't finish — audio is still here)";
   return "Transcribing…";
 }

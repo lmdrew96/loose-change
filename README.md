@@ -76,10 +76,10 @@ entries {
 
 ## Transcription Pipeline
 
-- Convex action triggers on audio sync completion.
-- Calls AssemblyAI, writes result to `transcript`, sets `transcriptionStatus: "done"`.
+- Convex action triggers on audio sync completion and submits the audio to AssemblyAI with a `webhook_url` pointing at the Convex HTTP action `/assemblyai-webhook` (see `convex/http.ts`). No polling, so there's no ceiling to time out against.
+- AssemblyAI calls back when the job finishes, with the `X-Loose-Change-Webhook-Secret` header set to `ASSEMBLYAI_WEBHOOK_SECRET`. A call without the right secret gets a 401 and writes nothing. The webhook only carries the job id, so a scheduled action fetches the text and sets `transcriptionStatus: "done"`. Only an entry still waiting on that exact job is written.
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
-- Polling gives up after 150s. That lands as `timed_out`, not `failed` — it bounds AssemblyAI's queue, not the audio, so it's the one outcome that can be retried: expand the card and **Try transcribing again**, which re-polls the job already in their queue.
+- `timed_out` is retryable: expand the card and **Try transcribing again**, which checks the job already in AssemblyAI's queue once rather than resubmitting. It's what entries from the polling era landed in, what a retry of a still-queued job returns to, and what a webhook becomes if its transcript couldn't be read.
 - `failed` (bad key, API error, undecodable audio) has no retry. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
 
 ## Retention
@@ -168,6 +168,7 @@ These live in two different places.
 |---|---|---|
 | `CLERK_JWT_ISSUER_DOMAIN` | Clerk JWT template issuer; read by `auth.config.ts` | Yes |
 | `ASSEMBLYAI_API_KEY` | Transcription | Yes |
+| `ASSEMBLYAI_WEBHOOK_SECRET` | Any long random string. Authenticates AssemblyAI's webhook calls; without it, new voice memos are marked failed. | Yes |
 | `MCP_SHARED_SECRET` | Must match the Vercel value, or every MCP call fails "Invalid MCP secret" | Yes |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web push reminders | Yes |
 

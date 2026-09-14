@@ -148,8 +148,8 @@ export const TOOLS = [
     name: "lc_retry_transcription",
     description:
       "Retry a voice memo whose transcription timed out (transcriptionStatus: timed_out). Only timeouts " +
-      "are retryable — a 'failed' transcription won't succeed on a re-run. Re-polls the existing " +
-      "AssemblyAI job rather than resubmitting.",
+      "are retryable — a 'failed' transcription won't succeed on a re-run. Checks the existing " +
+      "AssemblyAI job once rather than resubmitting; if it's still queued the memo stays timed_out.",
     inputSchema: {
       type: "object",
       properties: { entry_id: { type: "string" } },
