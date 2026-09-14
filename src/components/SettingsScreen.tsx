@@ -6,6 +6,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon } from "@/components/icons";
+import { StuckCaptures } from "@/components/StuckCaptures";
 import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
 
 export function SettingsScreen() {
@@ -122,6 +123,8 @@ export function SettingsScreen() {
           Sign out
         </button>
       </section>
+
+      <StuckCaptures />
 
       {/* The same breakdown lc_get_stats returns. Plain counts, no charts, no
           streaks, no framing about being behind — the README rules those out,

@@ -7,9 +7,26 @@ const IN_PROGRESS_STORE = "inProgressRecordings";
 const TEXT_DRAFT_STORE = "textDrafts";
 const TEXT_DRAFT_KEY = "current";
 
-export type PendingCapture =
+// Sync failure bookkeeping, shared by both capture arms. Optional because
+// records queued before these fields existed have neither.
+type SyncFailureInfo = { attempts?: number; lastError?: string };
+
+export type PendingCapture = (
   | { localId: string; captureMode: "text"; transcript: string; capturedAt: number }
-  | { localId: string; captureMode: "voice"; audioBlob: Blob; capturedAt: number };
+  | { localId: string; captureMode: "voice"; audioBlob: Blob; capturedAt: number }
+) &
+  SyncFailureInfo;
+
+// Past this many failed sync passes a capture is shown as stuck rather than
+// waiting. It keeps retrying regardless — being stuck only changes how it's
+// shown, and dropping it is always the user's explicit choice, never automatic.
+export const STUCK_AFTER_ATTEMPTS = 5;
+
+export function isStuck(capture: PendingCapture): boolean {
+  return (capture.attempts ?? 0) >= STUCK_AFTER_ATTEMPTS;
+}
+
+const MAX_ERROR_LENGTH = 300;
 
 interface InProgressRecording {
   localId: string;
@@ -70,6 +87,30 @@ export async function getPendingCaptures(): Promise<PendingCapture[]> {
     request.onsuccess = () => resolve(request.result as PendingCapture[]);
     request.onerror = () => reject(request.error);
   });
+}
+
+// Read-modify-write inside one transaction, so it can't clobber a concurrent
+// delete. A capture that was deleted meanwhile (synced elsewhere, discarded)
+// is left deleted rather than resurrected.
+export async function recordSyncFailure(localId: string, error: string): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(localId);
+    getReq.onsuccess = () => {
+      const capture = getReq.result as PendingCapture | undefined;
+      if (!capture) return;
+      store.put({
+        ...capture,
+        attempts: (capture.attempts ?? 0) + 1,
+        lastError: error.slice(0, MAX_ERROR_LENGTH),
+      });
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  notifyPendingCapturesChanged();
 }
 
 export async function deletePendingCapture(localId: string): Promise<void> {

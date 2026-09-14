@@ -127,6 +127,7 @@ const UI_ONLY: Record<string, string> = {
   "mcp token generate/regenerate": "bootstraps MCP access, so exposing it over MCP is circular",
   "push subscribe/unsubscribe": "per-device browser permission, meaningless server-side",
   "triage skip": "moves an ephemeral cursor, persists nothing",
+  "stuck capture inspect/discard": "the capture lives only in this device's IndexedDB and never reached the server",
 };
 
 describe("MCP ↔ UI parity", () => {

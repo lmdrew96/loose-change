@@ -12,6 +12,7 @@ import {
   finalizeInProgressRecording,
   getDraftText,
   getPendingCaptures,
+  isStuck,
   saveDraftText,
   startInProgressRecording,
   subscribePendingCaptures,
@@ -68,7 +69,7 @@ export function RecordScreen() {
   const [micError, setMicError] = useState<string | null>(null);
   const [textValue, setTextValue] = useState("");
   const [textSaved, setTextSaved] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [syncCounts, setSyncCounts] = useState({ waiting: 0, stuck: 0 });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const pendingAppendsRef = useRef<Promise<void>[]>([]);
   const recordingLocalIdRef = useRef<string | null>(null);
@@ -94,12 +95,15 @@ export function RecordScreen() {
     });
   }, []);
 
-  // Reflects captures still sitting in IndexedDB — either waiting for the
-  // network or stuck on a sync that keeps failing (syncEngine only
-  // console.errors those, so this is the one visible signal of that).
+  // Reflects captures still sitting in IndexedDB, split so a capture that keeps
+  // failing doesn't masquerade as one merely waiting for signal — a "pending"
+  // count that never goes down teaches you to ignore it.
   useEffect(() => {
     function refresh() {
-      void getPendingCaptures().then((captures) => setPendingCount(captures.length));
+      void getPendingCaptures().then((captures) => {
+        const stuck = captures.filter(isStuck).length;
+        setSyncCounts({ waiting: captures.length - stuck, stuck });
+      });
     }
     refresh();
     return subscribePendingCaptures(refresh);
@@ -236,8 +240,15 @@ export function RecordScreen() {
             <span className="text-sm">{formatCount(untriagedCount)}</span>
           )}
         </Link>
-        {pendingCount > 0 && (
-          <span className="pl-2 text-xs text-beaver">{pendingCount} pending sync</span>
+        {syncCounts.waiting > 0 && (
+          <span className="pl-2 text-xs text-beaver">{syncCounts.waiting} pending sync</span>
+        )}
+        {/* Plain text, not an alert — no red badges per the README. The detail
+            and the discard live in Settings, keeping Record to one action. */}
+        {syncCounts.stuck > 0 && (
+          <Link href="/settings#stuck-captures" className="pl-2 text-xs text-beaver underline hover:text-gold">
+            {syncCounts.stuck === 1 ? "1 capture couldn't sync" : `${syncCounts.stuck} captures couldn't sync`}
+          </Link>
         )}
       </div>
 

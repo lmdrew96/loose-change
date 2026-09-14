@@ -1,7 +1,12 @@
 import { convexClient } from "@/components/ConvexClientProvider";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { getPendingCaptures, deletePendingCapture, type PendingCapture } from "./offlineQueue";
+import {
+  getPendingCaptures,
+  deletePendingCapture,
+  recordSyncFailure,
+  type PendingCapture,
+} from "./offlineQueue";
 
 let syncing = false;
 
@@ -16,6 +21,14 @@ export async function syncPendingCaptures(): Promise<void> {
         await deletePendingCapture(capture.localId);
       } catch (err) {
         console.error("Sync failed for capture, will retry later:", capture.localId, err);
+        // Counted so a capture that can never succeed becomes visible as stuck
+        // instead of silently inflating the pending count forever. Failing to
+        // record that mustn't stop the rest of the queue from syncing.
+        try {
+          await recordSyncFailure(capture.localId, err instanceof Error ? err.message : String(err));
+        } catch (recordErr) {
+          console.error("Couldn't record sync failure:", capture.localId, recordErr);
+        }
       }
     }
   } finally {
