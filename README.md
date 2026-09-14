@@ -136,14 +136,42 @@ Five capabilities are deliberately app-only:
 - **Triage Skip** — moves an ephemeral cursor and persists nothing, so there's no state for a tool to change.
 - **Stuck capture inspect / discard** — the capture lives only in the device's IndexedDB; it never reached the server, so there's nothing for a tool to see.
 
+## Deploying
+
+A push to `main` deploys the Convex functions and the frontend together. `vercel.json` sets Vercel's build command to:
+
+- **Production builds**: `npx convex deploy --cmd 'pnpm build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL`. Convex pushes functions first (typecheck, codegen, schema), then runs `next build` with the production deployment's URL injected. If the Convex push fails, the whole build fails, so a frontend can never ship expecting functions the backend doesn't have.
+- **Preview builds**: plain `pnpm build`, no Convex deploy. Previews can't overwrite production functions.
+
+`pnpm build` locally is just `next build` and never deploys anything. Use `npx convex dev` for the dev deployment.
+
+Convex refuses to deploy if `auth.config.ts` references an env var the target deployment doesn't have, but it does **not** check the others (they're read at runtime). When adding a Convex env var, set it on the production deployment in the Convex dashboard *before* pushing code that reads it.
+
 ## Environment Variables
+
+These live in two different places.
+
+### Vercel (Project → Settings → Environment Variables)
 
 | Variable | Description | Required |
 |---|---|---|
-| `CONVEX_DEPLOYMENT` | Convex project deployment URL | Yes |
+| `CONVEX_DEPLOY_KEY` | Production deploy key (Convex dashboard → production deployment → Settings → Deploy keys). Scope to **Production only**. | Yes |
+| `NEXT_PUBLIC_CONVEX_URL` | Convex deployment URL. Injected by `convex deploy` on production builds; still needed for preview builds. | Yes |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk auth | Yes |
 | `CLERK_SECRET_KEY` | Clerk auth | Yes |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` / `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-in` and `/sign-up` (embedded pages, not Clerk's hosted portal) | Yes |
+| `MCP_SHARED_SECRET` | Authenticates the MCP route to Convex. Must be identical to the Convex value. | Yes |
+
+### Convex (dashboard → deployment → Settings → Environment Variables)
+
+| Variable | Description | Required |
+|---|---|---|
+| `CLERK_JWT_ISSUER_DOMAIN` | Clerk JWT template issuer; read by `auth.config.ts` | Yes |
 | `ASSEMBLYAI_API_KEY` | Transcription | Yes |
+| `MCP_SHARED_SECRET` | Must match the Vercel value, or every MCP call fails "Invalid MCP secret" | Yes |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web push reminders | Yes |
+
+Locally, `.env.local` holds both sets (see `.env.example`) and `CONVEX_DEPLOYMENT` is written by `npx convex dev`.
 
 ## Design Constraints (do not violate)
 
