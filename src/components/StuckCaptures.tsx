@@ -8,7 +8,7 @@ import {
   subscribePendingCaptures,
   type PendingCapture,
 } from "@/lib/offlineQueue";
-import { syncPendingCaptures } from "@/lib/syncEngine";
+import { retryAllPendingCaptures } from "@/lib/syncEngine";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { MicIcon, KeyboardIcon } from "@/components/icons";
 import { formatTimestamp } from "@/lib/format";
@@ -128,7 +128,7 @@ export function StuckCaptures() {
   async function handleRetry() {
     setRetrying(true);
     try {
-      await syncPendingCaptures();
+      await retryAllPendingCaptures();
     } finally {
       setRetrying(false);
     }

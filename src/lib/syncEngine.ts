@@ -4,18 +4,32 @@ import type { Id } from "../../convex/_generated/dataModel";
 import {
   getPendingCaptures,
   deletePendingCapture,
+  isDueForRetry,
   recordSyncFailure,
   type PendingCapture,
 } from "./offlineQueue";
 
 let syncing = false;
 
+// No arguments on purpose: it's registered directly as the "online" listener,
+// so it would receive the Event as its first parameter.
 export async function syncPendingCaptures(): Promise<void> {
+  await runSync(false);
+}
+
+// "Try again now" — retries every queued capture regardless of backoff.
+export async function retryAllPendingCaptures(): Promise<void> {
+  await runSync(true);
+}
+
+async function runSync(ignoreBackoff: boolean): Promise<void> {
   if (syncing || typeof navigator === "undefined" || !navigator.onLine) return;
   syncing = true;
   try {
+    const now = Date.now();
     const pending = await getPendingCaptures();
     for (const capture of pending) {
+      if (!ignoreBackoff && !isDueForRetry(capture, now)) continue;
       try {
         await syncOne(capture);
         await deletePendingCapture(capture.localId);

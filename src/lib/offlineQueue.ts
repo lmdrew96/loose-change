@@ -9,7 +9,7 @@ const TEXT_DRAFT_KEY = "current";
 
 // Sync failure bookkeeping, shared by both capture arms. Optional because
 // records queued before these fields existed have neither.
-type SyncFailureInfo = { attempts?: number; lastError?: string };
+type SyncFailureInfo = { attempts?: number; lastError?: string; lastAttemptAt?: number };
 
 export type PendingCapture = (
   | { localId: string; captureMode: "text"; transcript: string; capturedAt: number }
@@ -24,6 +24,20 @@ export const STUCK_AFTER_ATTEMPTS = 5;
 
 export function isStuck(capture: PendingCapture): boolean {
   return (capture.attempts ?? 0) >= STUCK_AFTER_ATTEMPTS;
+}
+
+// Automatic retries of a failing capture wait 30s, 1m, 2m, 4m… capped at an
+// hour, so a capture that can't succeed isn't re-uploaded on every sync pass.
+// "Try again now" in Settings ignores this.
+const RETRY_BASE_DELAY_MS = 30_000;
+const RETRY_MAX_DELAY_MS = 60 * 60_000;
+
+export function isDueForRetry(capture: PendingCapture, now: number): boolean {
+  const attempts = capture.attempts ?? 0;
+  // Never failed, or failed before lastAttemptAt was tracked: no delay.
+  if (attempts === 0 || capture.lastAttemptAt === undefined) return true;
+  const delay = Math.min(RETRY_BASE_DELAY_MS * 2 ** (attempts - 1), RETRY_MAX_DELAY_MS);
+  return now - capture.lastAttemptAt >= delay;
 }
 
 const MAX_ERROR_LENGTH = 300;
@@ -105,6 +119,7 @@ export async function recordSyncFailure(localId: string, error: string): Promise
         ...capture,
         attempts: (capture.attempts ?? 0) + 1,
         lastError: error.slice(0, MAX_ERROR_LENGTH),
+        lastAttemptAt: Date.now(),
       });
     };
     tx.oncomplete = () => resolve();
