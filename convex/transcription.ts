@@ -6,6 +6,11 @@ const ASSEMBLYAI_BASE = "https://api.assemblyai.com/v2";
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 30;
 
+// Thrown only when polling runs out, so the catch can record a timeout
+// separately from every other failure. A timeout bounds AssemblyAI's queue
+// depth, not the audio — it's the one outcome worth retrying.
+class TranscriptionTimeoutError extends Error {}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -20,25 +25,31 @@ export const transcribeEntry = internalAction({
       return;
     }
 
-    const audioUrl = await ctx.runQuery(internal.entries.getAudioUrlForTranscription, { entryId });
-    if (!audioUrl) {
+    const job = await ctx.runQuery(internal.entries.getTranscriptionJob, { entryId });
+    if (!job) {
       await ctx.runMutation(internal.entries.setTranscriptionFailed, { entryId });
       return;
     }
 
     try {
-      const submitRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
-        method: "POST",
-        headers: {
-          authorization: apiKey,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ audio_url: audioUrl }),
-      });
-      if (!submitRes.ok) {
-        throw new Error(`AssemblyAI submit failed: ${submitRes.status} ${await submitRes.text()}`);
+      // A retry after a timeout already has a job in AssemblyAI's queue —
+      // re-poll that rather than submitting a second copy behind it.
+      let id = job.jobId;
+      if (id === undefined) {
+        const submitRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
+          method: "POST",
+          headers: {
+            authorization: apiKey,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ audio_url: job.audioUrl }),
+        });
+        if (!submitRes.ok) {
+          throw new Error(`AssemblyAI submit failed: ${submitRes.status} ${await submitRes.text()}`);
+        }
+        id = ((await submitRes.json()) as { id: string }).id;
+        await ctx.runMutation(internal.entries.setTranscriptionJobId, { entryId, jobId: id });
       }
-      const { id } = (await submitRes.json()) as { id: string };
 
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
         await sleep(POLL_INTERVAL_MS);
@@ -65,8 +76,13 @@ export const transcribeEntry = internalAction({
           throw new Error(result.error ?? "AssemblyAI transcription error");
         }
       }
-      throw new Error("AssemblyAI transcription timed out");
+      throw new TranscriptionTimeoutError("AssemblyAI transcription timed out");
     } catch (err) {
+      if (err instanceof TranscriptionTimeoutError) {
+        console.warn("Transcription timed out; retryable:", entryId);
+        await ctx.runMutation(internal.entries.setTranscriptionTimedOut, { entryId });
+        return;
+      }
       console.error("Transcription failed:", err);
       await ctx.runMutation(internal.entries.setTranscriptionFailed, { entryId });
     }

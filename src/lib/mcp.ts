@@ -145,6 +145,18 @@ export const TOOLS = [
     },
   },
   {
+    name: "lc_retry_transcription",
+    description:
+      "Retry a voice memo whose transcription timed out (transcriptionStatus: timed_out). Only timeouts " +
+      "are retryable — a 'failed' transcription won't succeed on a re-run. Re-polls the existing " +
+      "AssemblyAI job rather than resubmitting.",
+    inputSchema: {
+      type: "object",
+      properties: { entry_id: { type: "string" } },
+      required: ["entry_id"],
+    },
+  },
+  {
     name: "lc_get_stats",
     description:
       "Untriaged count and keep/discard/promote breakdown. Counts are capped at 500 per status; " +
@@ -313,6 +325,17 @@ export const dispatchTool = async (
         destination,
       });
       return textContent({ entry_id: entryId, status: "promoted", promotedTo: destination });
+    }
+
+    case "lc_retry_transcription": {
+      const entryId = asString(args.entry_id);
+      if (!entryId) throw new ToolError(-32602, "lc_retry_transcription requires entry_id");
+      await convex.mutation(api.entries.mcpRetryTranscription, {
+        secret,
+        userId,
+        entryId: entryId as Id<"entries">,
+      });
+      return textContent({ entry_id: entryId, transcriptionStatus: "pending" });
     }
 
     case "lc_get_stats": {

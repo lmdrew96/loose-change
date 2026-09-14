@@ -12,7 +12,16 @@ export default defineSchema({
       v.literal("pending"),
       v.literal("done"),
       v.literal("failed"),
+      // Gave up polling while AssemblyAI was still working. Distinct from
+      // "failed" because it's retryable — the audio is fine, their queue was
+      // just slow — and the UI offers a retry for this state only.
+      v.literal("timed_out"),
     ),
+    // AssemblyAI's id for the submitted job. Kept so a retry after a timeout
+    // re-polls the job already in their queue instead of resubmitting to the
+    // back of it (and paying for it twice). Absent on entries transcribed
+    // before this existed and on text/chat entries.
+    transcriptionJobId: v.optional(v.string()),
     status: v.union(
       v.literal("untriaged"),
       v.literal("kept"),

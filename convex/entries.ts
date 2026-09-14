@@ -169,6 +169,21 @@ async function markPromotedHandler(
   await ctx.db.patch(entryId, { status: "promoted", promotedTo: destination, triagedAt: Date.now() });
 }
 
+// Only a timeout is retryable. "failed" covers bad keys, API errors and
+// undecodable audio, none of which a re-run fixes — and the README's stance
+// that a garbled transcript's fallback is the audio, not a re-run, still holds.
+async function retryTranscriptionHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
+  const entry = await requireOwnedEntry(ctx, userId, entryId);
+  if (entry.transcriptionStatus !== "timed_out") {
+    throw new Error("Only a transcription that timed out can be retried");
+  }
+  // Retention may have cleared the blob since the timeout; with nothing to
+  // transcribe, the action would just mark it failed.
+  if (entry.audioStorageId === null) throw new Error("Audio is no longer available to transcribe");
+  await ctx.db.patch(entryId, { transcriptionStatus: "pending" });
+  await ctx.scheduler.runAfter(0, internal.transcription.transcribeEntry, { entryId });
+}
+
 async function searchHandler(
   ctx: QueryCtx,
   userId: string,
@@ -251,12 +266,28 @@ export const createVoiceEntry = mutation({
   },
 });
 
-export const getAudioUrlForTranscription = internalQuery({
+export const getTranscriptionJob = internalQuery({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
     const entry = await ctx.db.get(entryId);
     if (!entry || entry.audioStorageId === null) return null;
-    return await ctx.storage.getUrl(entry.audioStorageId);
+    const audioUrl = await ctx.storage.getUrl(entry.audioStorageId);
+    if (!audioUrl) return null;
+    return { audioUrl, jobId: entry.transcriptionJobId };
+  },
+});
+
+export const setTranscriptionJobId = internalMutation({
+  args: { entryId: v.id("entries"), jobId: v.string() },
+  handler: async (ctx, { entryId, jobId }) => {
+    await ctx.db.patch(entryId, { transcriptionJobId: jobId });
+  },
+});
+
+export const setTranscriptionTimedOut = internalMutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    await ctx.db.patch(entryId, { transcriptionStatus: "timed_out" });
   },
 });
 
@@ -379,6 +410,14 @@ export const markPromoted = mutation({
   },
 });
 
+export const retryTranscription = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    const userId = await requireUserId(ctx);
+    await retryTranscriptionHandler(ctx, userId, entryId);
+  },
+});
+
 export const searchEntries = query({
   args: {
     query: v.string(),
@@ -481,6 +520,14 @@ export const mcpMarkPromoted = mutation({
   handler: async (ctx, { secret, userId, entryId, destination }) => {
     requireMcpSecret(secret);
     await markPromotedHandler(ctx, userId, entryId, destination);
+  },
+});
+
+export const mcpRetryTranscription = mutation({
+  args: { secret: v.string(), userId: v.string(), entryId: v.id("entries") },
+  handler: async (ctx, { secret, userId, entryId }) => {
+    requireMcpSecret(secret);
+    await retryTranscriptionHandler(ctx, userId, entryId);
   },
 });
 

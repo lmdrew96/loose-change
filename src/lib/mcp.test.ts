@@ -48,6 +48,7 @@ describe("argument validation", () => {
     ["lc_keep", {}],
     ["lc_discard", {}],
     ["lc_undo_discard", {}],
+    ["lc_retry_transcription", {}],
     ["lc_search", {}],
     ["lc_capture_text", {}],
     ["lc_mark_promoted", { entry_id: "abc" }],
@@ -114,6 +115,7 @@ const UI_SURFACE: Record<string, string> = {
   lc_discard: "TriageScreen Discard, D key, swipe left; KeptScreen + SearchScreen trash",
   lc_undo_discard: "TriageScreen undo toast; KeptScreen Restore; SearchScreen Restore",
   lc_mark_promoted: "TriageScreen destination buttons + More destinations disclosure",
+  lc_retry_transcription: "EntryCard — expand a timed-out voice memo, Try transcribing again",
   lc_get_stats: "SettingsScreen — Your captures breakdown",
   lc_capture_text: "RecordScreen — text mode",
 };

@@ -60,7 +60,8 @@ entries {
   captureMode: "voice" | "text" | "chat"
   transcript: string | null       // null until transcription completes (voice only)
   audioStorageId: string | null   // Convex storage ref; null for text/chat entries
-  transcriptionStatus: "n/a" | "pending" | "done" | "failed"
+  transcriptionStatus: "n/a" | "pending" | "done" | "failed" | "timed_out"
+  transcriptionJobId?: string      // AssemblyAI job id; a retry re-polls it instead of resubmitting
   status: "untriaged" | "kept" | "discarded" | "promoted"
   promotedTo: "kindling" | "controlledchaos" | "threadnotes" | "tangle" | "chaospatch" | null
   discardedAt: number | null       // when discarded; the 30-day purge measures from here
@@ -77,7 +78,8 @@ entries {
 - Convex action triggers on audio sync completion.
 - Calls AssemblyAI, writes result to `transcript`, sets `transcriptionStatus: "done"`.
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
-- No retry-transcription UI in v1. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
+- Polling gives up after 150s. That lands as `timed_out`, not `failed` — it bounds AssemblyAI's queue, not the audio, so it's the one outcome that can be retried: expand the card and **Try transcribing again**, which re-polls the job already in their queue.
+- `failed` (bad key, API error, undecodable audio) has no retry. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
 
 ## Retention
 
@@ -103,6 +105,7 @@ Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the R
 | `lc_discard` | Soft-delete (starts the 30-day undo window) |
 | `lc_undo_discard` | Restore a discarded entry to the status it was discarded from |
 | `lc_mark_promoted` | Flag an entry as sent elsewhere + record destination |
+| `lc_retry_transcription` | Retry a voice memo whose transcription timed out |
 | `lc_get_stats` | Untriaged count, keep/discard/promote breakdown — informational only, no gamification |
 | `lc_capture_text` | Capture a thought directly from a chat conversation (`captureMode: "chat"`), skipping the app entirely |
 
@@ -120,6 +123,7 @@ Anything the MCP tools can do is doable in the app, and vice versa. `src/lib/mcp
 | `lc_discard` | Triage Discard, `D`, swipe left; trash from Archive and Search |
 | `lc_undo_discard` | Triage undo toast; Restore from Archive and Search |
 | `lc_mark_promoted` | Triage destination buttons, plus **More destinations** |
+| `lc_retry_transcription` | Expand a timed-out voice memo → Try transcribing again |
 | `lc_get_stats` | Settings → Your captures |
 | `lc_capture_text` | Record → text mode |
 

@@ -7,6 +7,7 @@ import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { transcriptPlaceholder } from "@/components/EntryCard";
 
 // Mirrors lc_mark_promoted's destination enum exactly. The first two keep
 // their fixed positions in the action grid; the rest live behind a disclosure
@@ -379,10 +380,7 @@ function TriageCard({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <p className="whitespace-pre-wrap text-base">
-          {entry.transcript ??
-            (entry.transcriptionStatus === "failed"
-              ? "(couldn't transcribe — audio available)"
-              : "Transcribing…")}
+          {entry.transcript ?? transcriptPlaceholder(entry.transcriptionStatus)}
         </p>
       </div>
       {entry.captureMode === "voice" && entry.audioUrl && (
