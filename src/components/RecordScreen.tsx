@@ -166,8 +166,15 @@ export function RecordScreen() {
       recorder.start(RECORDING_TIMESLICE_MS);
       mediaRecorderRef.current = recorder;
       setView("voice-recording");
-    } catch {
-      setMicError("Microphone access needed to record.");
+    } catch (err) {
+      // Says what to do next, not just that it failed. NotFoundError means
+      // there's no microphone at all, which no permission change will fix.
+      const name = err instanceof DOMException ? err.name : "";
+      setMicError(
+        name === "NotFoundError"
+          ? "No microphone found. Connect one, or use text mode (keyboard icon, top right)."
+          : "Loose Change needs your microphone. Allow it in your browser's site settings (the icon beside the address bar, or your phone's app settings), then try again.",
+      );
     }
   }
 
@@ -213,6 +220,13 @@ export function RecordScreen() {
           ref={textareaRef}
           value={textValue}
           onChange={(e) => setTextValue(e.target.value)}
+          // ⌘/Ctrl+Enter saves; a plain Enter is still a newline.
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              void saveText();
+            }
+          }}
           placeholder="What's on your mind..."
           className="mt-4 flex-1 resize-none bg-transparent text-lg outline-none placeholder:text-beaver"
         />
@@ -298,7 +312,17 @@ export function RecordScreen() {
       )}
 
       {view === "saved" && <p className="text-sm text-gold">Saved ✓</p>}
-      {micError && <p className="text-sm text-engineering">{micError}</p>}
+      {micError && (
+        <div role="alert" className="flex max-w-sm flex-col items-center gap-2 text-center">
+          <p className="text-sm text-engineering">{micError}</p>
+          <button
+            onClick={startRecording}
+            className="min-h-11 rounded-lg border border-olive px-4 text-sm text-beaver hover:text-gold"
+          >
+            Try again
+          </button>
+        </div>
+      )}
     </main>
   );
 }

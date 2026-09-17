@@ -152,6 +152,8 @@ A push to `main` deploys the Convex functions and the frontend together. `vercel
 - **Production builds**: `npx convex deploy --cmd 'pnpm build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL`. Convex pushes functions first (typecheck, codegen, schema), then runs `next build` with the production deployment's URL injected. If the Convex push fails, the whole build fails, so a frontend can never ship expecting functions the backend doesn't have.
 - **Preview builds**: plain `pnpm build`, no Convex deploy. Previews can't overwrite production functions.
 
+The Vercel variable must be named exactly `CONVEX_DEPLOY_KEY`. Putting the key in `CONVEX_DEPLOYMENT` makes the deploy fail with a 401 (`MissingAccessToken`).
+
 `pnpm build` locally is just `next build` and never deploys anything. Use `npx convex dev` for the dev deployment.
 
 Convex refuses to deploy if `auth.config.ts` references an env var the target deployment doesn't have, but it does **not** check the others (they're read at runtime). When adding a Convex env var, set it on the production deployment in the Convex dashboard *before* pushing code that reads it.

@@ -166,6 +166,17 @@ export function SettingsScreen() {
         )}
       </section>
 
+      {/* Explained up front, so "Audio was cleared" on an old card isn't the
+          first you hear of it. */}
+      <section className="mb-8">
+        <h2 className="mb-2 text-sm font-medium text-beaver">What happens to your captures</h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-beaver">
+          <li>Everything in your Inbox stays, audio included, until you triage it.</li>
+          <li>Once triaged, a voice memo&rsquo;s audio is kept for 30 days. The transcript stays.</li>
+          <li>Discarded captures can be restored from Archive for 30 days, then they&rsquo;re removed.</li>
+        </ul>
+      </section>
+
       {pushEnabled !== null && (
         <section className="mb-8">
           <h2 className="mb-2 text-sm font-medium text-beaver">Reminders</h2>

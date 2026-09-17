@@ -8,7 +8,7 @@ import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
-import { DESTINATIONS, destinationLabel, type Destination } from "@/lib/labels";
+import { DESTINATIONS, destinationLabel, destinationUrl, type Destination } from "@/lib/labels";
 import { formatCount } from "@/lib/format";
 
 export function TriageScreen() {
@@ -100,7 +100,10 @@ export function TriageScreen() {
     const result = await runAction(`Copied, but couldn't mark it sent to ${label} — try again.`, () =>
       markPromoted({ entryId, destination }),
     );
-    if (result.ok) offerUndoToInbox(entryId, `Copied — paste into ${label}`);
+    if (!result.ok) return;
+    // Saves the manual app switch. Opens in a new tab so Triage stays put.
+    const url = destinationUrl(destination);
+    offerUndoToInbox(entryId, `Copied — paste into ${label}`, url ? { label: `Open ${label}`, href: url } : undefined);
   }
 
   // Batch-triage speedup for desktop sessions (README frames Triage as a
