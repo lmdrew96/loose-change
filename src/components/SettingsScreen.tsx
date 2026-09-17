@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { StuckCaptures } from "@/components/StuckCaptures";
+import { ExportCaptures } from "@/components/ExportCaptures";
 import { getOwnPendingCaptures } from "@/lib/offlineQueue";
 import { STATUS_LABELS } from "@/lib/labels";
 import { setTonesEnabled, useTonesEnabled } from "@/lib/recordingFeedback";
@@ -233,6 +234,8 @@ export function SettingsScreen() {
           <li>Discarded captures can be restored from Archive for 30 days, then they&rsquo;re removed.</li>
         </ul>
       </section>
+
+      <ExportCaptures />
 
       {pushEnabled !== null && (
         <section className="mb-8">

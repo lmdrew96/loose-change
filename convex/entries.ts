@@ -426,6 +426,39 @@ export const getEntry = query({
   },
 });
 
+// Largest page the export may ask for. Transcript-only rows are small, but
+// the cap keeps one call well under Convex's per-function read limit however
+// the client is configured.
+const EXPORT_PAGE_MAX = 500;
+
+// One page of everything the user has captured, newest first, for Settings →
+// Download all captures. The client walks the pages; no single call reads the
+// whole history. Audio is left out — its URLs expire, so they'd be dead links
+// in a backup.
+export const exportEntriesPage = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    const userId = await requireUserId(ctx);
+    const result = await ctx.db
+      .query("entries")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate({ ...paginationOpts, numItems: Math.min(paginationOpts.numItems, EXPORT_PAGE_MAX) });
+    return {
+      ...result,
+      page: result.page.map((entry) => ({
+        createdAt: entry.createdAt,
+        captureMode: entry.captureMode,
+        status: entry.status,
+        promotedTo: entry.promotedTo,
+        transcript: entry.transcript,
+        transcriptionStatus: entry.transcriptionStatus,
+        originalTranscript: entry.originalTranscript,
+      })),
+    };
+  },
+});
+
 // getStatsHandler existed for lc_get_stats only; the app had no way to see the
 // same breakdown. Informational, per the README — no streaks, no gamification.
 export const getStats = query({

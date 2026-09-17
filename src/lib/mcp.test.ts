@@ -134,6 +134,8 @@ const UI_ONLY: Record<string, string> = {
   "mcp token generate/regenerate": "bootstraps MCP access, so exposing it over MCP is circular",
   "push subscribe/unsubscribe": "per-device browser permission, meaningless server-side",
   "triage skip": "moves an ephemeral cursor, persists nothing",
+  "download all captures":
+    "a file handed to the person's device; MCP clients already page through the same entries with lc_list_inbox and lc_list_archive",
   "stuck capture inspect/discard": "the capture lives only in this device's IndexedDB and never reached the server",
 };
 

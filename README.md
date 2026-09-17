@@ -101,6 +101,10 @@ Two scheduled Convex functions, both daily.
 
 **Discarded entries** — 30 days after `discardedAt`, the entry is deleted outright (blob first, then the row). This is what closes the undo window: before it existed, "reversible for 30 days" had no closing edge and discarded memos stayed searchable forever.
 
+## Export
+
+Settings → **Download all captures** saves every entry as one Markdown file (`loose-change-YYYY-MM-DD.md`): date, capture mode, status, destination, transcript, and the original if it was edited. Audio isn't included, since its links expire. The client pages through `exportEntriesPage` 200 at a time, so a long history never hits Convex's read limit. Where a download doesn't land anywhere obvious (installed iOS apps), a **Share the file instead** link opens the share sheet.
+
 ## MCP Tools (`lc_` prefix)
 
 Single-responsibility: `lc_mark_promoted` only logs where an entry went. It does not write into the destination app directly — that happens via that app's own MCP tools, called separately. Destinations: `kindling`, `controlledchaos`, `threadnotes`, `tangle`, `chaospatch`.
@@ -145,12 +149,13 @@ Anything the MCP tools can do is doable in the app, and vice versa. `src/lib/mcp
 | `lc_get_stats` | Settings → Your captures |
 | `lc_capture_text` | Record → text mode |
 
-Five capabilities are deliberately app-only:
+Six capabilities are deliberately app-only:
 
 - **Voice capture** — binary audio doesn't fit JSON-RPC, and an MCP client has no microphone. `lc_capture_text` is the analogue.
 - **MCP token generate / regenerate** — it bootstraps MCP access, so exposing it over MCP would be circular.
 - **Push subscribe / unsubscribe** — a per-device browser permission, meaningless from a server-side client.
 - **Triage Skip** — moves an ephemeral cursor and persists nothing, so there's no state for a tool to change.
+- **Download all captures** — a file for the person's device. MCP clients can already page through the same entries with `lc_list_inbox` and `lc_list_archive`.
 - **Stuck capture inspect / discard** — the capture lives only in the device's IndexedDB; it never reached the server, so there's nothing for a tool to see.
 
 ## Deploying
