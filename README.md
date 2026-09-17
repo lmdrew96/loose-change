@@ -75,6 +75,7 @@ entries {
   audioStorageId: string | null   // Convex storage ref; null for text/chat entries
   transcriptionStatus: "n/a" | "pending" | "done" | "failed" | "timed_out"
   transcriptionJobId?: string      // AssemblyAI job id; a retry re-polls it instead of resubmitting
+  transcriptionRequestedAt?: number // last submit or retry; the stale-transcription sweep measures from here
   status: "untriaged" | "kept" | "discarded" | "promoted"
   promotedTo: "kindling" | "controlledchaos" | "threadnotes" | "tangle" | "chaospatch" | null
   discardedAt: number | null       // when discarded; the 30-day purge measures from here
@@ -91,6 +92,7 @@ entries {
 - Convex action triggers on audio sync completion and submits the audio to AssemblyAI with a `webhook_url` pointing at the Convex HTTP action `/assemblyai-webhook` (see `convex/http.ts`). No polling, so there's no ceiling to time out against.
 - AssemblyAI calls back when the job finishes, with the `X-Loose-Change-Webhook-Secret` header set to `ASSEMBLYAI_WEBHOOK_SECRET`. A call without the right secret gets a 401 and writes nothing. The webhook only carries the job id, so a scheduled action fetches the text and sets `transcriptionStatus: "done"`. Only an entry still waiting on that exact job is written.
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
+- If the webhook never arrives (wrong secret, delivery outage, a crashed fetch), a sweep every 15 minutes (`sweepStaleTranscriptions`) picks up memos still pending 15 minutes after they were submitted (`transcriptionRequestedAt`). It checks their AssemblyAI job once, landing them on done, failed or `timed_out`. A memo with no recorded job goes straight to `timed_out`. Memos that are just mid-transcription are left alone.
 - `timed_out` is retryable: expand the card and **Try transcribing again**, which checks the job already in AssemblyAI's queue once rather than resubmitting. It's what entries from the polling era landed in, what a retry of a still-queued job returns to, and what a webhook becomes if its transcript couldn't be read.
 - Transcripts can be corrected by hand once they exist (**Edit transcript** on an expanded card or in Triage). The first edit saves the captured text in `originalTranscript`, so **Revert to original** always works, and a transcription result that arrives later never overwrites a hand edit.
 - `failed` (bad key, API error, undecodable audio) has no retry. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.

@@ -27,6 +27,11 @@ export default defineSchema({
     // back of it (and paying for it twice). Absent on entries transcribed
     // before this existed and on text/chat entries.
     transcriptionJobId: v.optional(v.string()),
+    // When transcription was last asked for (the first submit, or a retry).
+    // The stale-transcription sweep measures from here — not createdAt, which
+    // is capture time and can be days earlier for a memo that synced late.
+    // Absent on older rows; the sweep uses _creationTime for those.
+    transcriptionRequestedAt: v.optional(v.number()),
     status: v.union(
       v.literal("untriaged"),
       v.literal("kept"),
@@ -73,6 +78,7 @@ export default defineSchema({
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_status_createdAt", ["status", "createdAt"])
     .index("by_user_localId", ["userId", "localId"])
+    .index("by_transcriptionStatus_requestedAt", ["transcriptionStatus", "transcriptionRequestedAt"])
     .searchIndex("search_transcript", {
       searchField: "transcript",
       filterFields: ["userId", "status"],

@@ -230,7 +230,7 @@ async function retryTranscriptionHandler(ctx: MutationCtx, userId: string, entry
   // Retention may have cleared the blob since the timeout; with nothing to
   // transcribe, the action would just mark it failed.
   if (entry.audioStorageId === null) throw new Error("Audio is no longer available to transcribe");
-  await ctx.db.patch(entryId, { transcriptionStatus: "pending" });
+  await ctx.db.patch(entryId, { transcriptionStatus: "pending", transcriptionRequestedAt: Date.now() });
   await ctx.scheduler.runAfter(0, internal.transcription.transcribeEntry, { entryId });
 }
 
@@ -304,6 +304,7 @@ export const createVoiceEntry = mutation({
       transcript: null,
       audioStorageId,
       transcriptionStatus: "pending",
+      transcriptionRequestedAt: Date.now(),
       status: "untriaged",
       promotedTo: null,
       discardedAt: null,
@@ -355,7 +356,51 @@ export const setTranscriptionJobId = internalMutation({
 export const setTranscriptionTimedOut = internalMutation({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
+    // The stale sweep's job check can race a webhook that just finished. A
+    // transcript that already landed must not be flipped back to retryable.
+    const entry = await ctx.db.get(entryId);
+    if (!entry || entry.transcriptionStatus !== "pending") return;
     await ctx.db.patch(entryId, { transcriptionStatus: "timed_out" });
+  },
+});
+
+// AssemblyAI normally finishes well inside this, even for long memos.
+export const STALE_TRANSCRIPTION_MS = 15 * 60 * 1000;
+const STALE_SWEEP_BATCH = 50;
+
+// The webhook is the only thing that finishes a transcription, so if it never
+// arrives (secret mismatch, delivery outage, the fetch action crashing) a memo
+// would say "Transcribing…" forever with no retry. Every 15 minutes, anything
+// pending longer than STALE_TRANSCRIPTION_MS is resolved one way or another:
+// - with a job id: check that job once (transcribeEntry never resubmits one),
+//   which lands it on done, failed or timed_out;
+// - without one: the submit never recorded a job, so it becomes timed_out,
+//   and Retry submits it fresh.
+// A memo that's merely mid-transcription is younger than the cutoff and is
+// left alone.
+export const sweepStaleTranscriptions = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - STALE_TRANSCRIPTION_MS;
+    const candidates = await ctx.db
+      .query("entries")
+      .withIndex("by_transcriptionStatus_requestedAt", (q) =>
+        q.eq("transcriptionStatus", "pending").lt("transcriptionRequestedAt", cutoff),
+      )
+      .take(STALE_SWEEP_BATCH);
+
+    for (const entry of candidates) {
+      // Rows from before transcriptionRequestedAt existed sort first in the
+      // index (undefined < any number), so check their insert time instead.
+      if ((entry.transcriptionRequestedAt ?? entry._creationTime) >= cutoff) continue;
+      if (entry.transcriptionJobId === undefined) {
+        await ctx.db.patch(entry._id, { transcriptionStatus: "timed_out" });
+      } else {
+        // Restarts the clock, so a slow check isn't queued again next sweep.
+        await ctx.db.patch(entry._id, { transcriptionRequestedAt: Date.now() });
+        await ctx.scheduler.runAfter(0, internal.transcription.transcribeEntry, { entryId: entry._id });
+      }
+    }
   },
 });
 

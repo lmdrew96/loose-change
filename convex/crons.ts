@@ -15,6 +15,12 @@ crons.daily(
   internal.retention.purgeExpiredDiscards,
 );
 
+crons.interval(
+  "resolve stale transcriptions",
+  { minutes: 15 },
+  internal.entries.sweepStaleTranscriptions,
+);
+
 // Hourly, because each device picks its own day, hour and timezone. The
 // action decides who's due (reminderSchedule.ts), so the cron itself carries
 // no schedule.
