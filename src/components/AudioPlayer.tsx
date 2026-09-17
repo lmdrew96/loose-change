@@ -80,7 +80,7 @@ export function AudioPlayer({ src }: { src: string }) {
       <button
         onClick={togglePlay}
         aria-label={playing ? "Pause" : "Play"}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-jungle"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold text-jungle"
       >
         {playing ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
       </button>
@@ -93,7 +93,9 @@ export function AudioPlayer({ src }: { src: string }) {
         onChange={onScrub}
         disabled={!durationKnown}
         aria-label="Seek"
-        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-olive accent-gold disabled:cursor-default disabled:opacity-50"
+        // The native track keeps its thin look while the input itself is a
+        // 44px-tall touch target.
+        className="h-11 flex-1 cursor-pointer accent-gold disabled:cursor-default disabled:opacity-50"
       />
     </div>
   );

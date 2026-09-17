@@ -52,7 +52,7 @@ function RetryTranscription({ entryId }: { entryId: Doc<"entries">["_id"] }) {
       <button
         onClick={handleRetry}
         disabled={state === "retrying"}
-        className="rounded-lg border border-olive px-3 py-1.5 text-xs text-beaver hover:text-gold disabled:opacity-30"
+        className="min-h-11 rounded-lg border border-olive px-4 text-sm text-beaver hover:text-gold disabled:opacity-30"
       >
         Try transcribing again
       </button>
@@ -103,7 +103,7 @@ export function EntryCard({
           aria-expanded={expanded}
           className="min-w-0 flex-1 text-left"
         >
-          <p className={`text-sm ${expanded ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{text}</p>
+          <p className={`text-base ${expanded ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{text}</p>
           <p className="mt-1 text-xs text-beaver">
             {formatTimestamp(entry.createdAt)}
             {showStatus && entry.status !== "promoted" && ` · ${STATUS_LABELS[entry.status]}`}
@@ -118,8 +118,10 @@ export function EntryCard({
             {!expanded && " · tap to expand"}
           </p>
         </button>
-        {actions}
       </div>
+      {/* Below the text rather than beside it: full-size tap targets next to
+          the transcript would squeeze it to a sliver on a phone. */}
+      {actions && <div className="mt-1 flex flex-wrap items-center justify-end gap-1">{actions}</div>}
 
       {expanded && isVoice && entry.audioUrl && <AudioPlayer src={entry.audioUrl} />}
       {expanded && entry.transcriptionStatus === "timed_out" && entry.audioStorageId !== null && (

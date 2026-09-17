@@ -59,7 +59,7 @@ export function SearchScreen() {
             key={filter.label}
             aria-pressed={filter.value === status}
             onClick={() => setStatus(filter.value)}
-            className={`rounded-full px-3 py-1 text-xs ${
+            className={`min-h-11 rounded-full px-4 text-sm ${
               filter.value === status ? "bg-gold font-medium text-jungle" : "text-beaver hover:text-gold"
             }`}
           >
@@ -84,11 +84,11 @@ export function SearchScreen() {
               // lc_return_to_inbox can take on an entry of this status, so
               // search isn't a read-only dead end for anything the MCP client
               // could act on.
-              <div className="flex shrink-0 items-center gap-1">
+              <>
                 {entry.status === "discarded" ? (
                   <button
                     onClick={() => void restore(entry._id)}
-                    className="text-xs font-medium text-gold underline"
+                    className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-gold underline"
                   >
                     Restore
                   </button>
@@ -97,7 +97,7 @@ export function SearchScreen() {
                     {entry.status !== "untriaged" && (
                       <button
                         onClick={() => void returnToInbox(entry._id)}
-                        className="text-xs font-medium text-gold underline"
+                        className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-gold underline"
                       >
                         Move to Inbox
                       </button>
@@ -105,7 +105,7 @@ export function SearchScreen() {
                     {entry.status !== "kept" && (
                       <button
                         onClick={() => void keep(entry._id)}
-                        className="text-xs font-medium text-gold underline"
+                        className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-gold underline"
                       >
                         Keep
                       </button>
@@ -113,13 +113,13 @@ export function SearchScreen() {
                     <button
                       onClick={() => void discard(entry._id)}
                       aria-label="Discard"
-                      className="rounded-full p-2 text-beaver hover:text-engineering"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-beaver hover:text-engineering"
                     >
                       <TrashIcon size={16} />
                     </button>
                   </>
                 )}
-              </div>
+              </>
             }
           />
         ))}

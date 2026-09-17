@@ -54,10 +54,10 @@ export function InboxScreen() {
       </div>
 
       <div className="mt-4 flex justify-between">
-        <button onClick={goPrev} disabled={cursorStack.length <= 1} className="text-sm text-gold disabled:opacity-30">
+        <button onClick={goPrev} disabled={cursorStack.length <= 1} className="min-h-11 px-2 text-sm text-gold disabled:opacity-30">
           ← Previous
         </button>
-        <button onClick={goNext} disabled={!result || result.isDone} className="text-sm text-gold disabled:opacity-30">
+        <button onClick={goNext} disabled={!result || result.isDone} className="min-h-11 px-2 text-sm text-gold disabled:opacity-30">
           Next →
         </button>
       </div>

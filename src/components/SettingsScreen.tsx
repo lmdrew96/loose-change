@@ -125,7 +125,7 @@ export function SettingsScreen() {
         <p className="mb-3 text-sm">{user?.primaryEmailAddress?.emailAddress}</p>
         <button
           onClick={() => signOut({ redirectUrl: "/sign-in" })}
-          className="rounded-lg bg-engineering px-4 py-2 text-sm text-white"
+          className="rounded-lg bg-engineering min-h-11 px-4 text-sm text-white"
         >
           Sign out
         </button>
@@ -176,7 +176,7 @@ export function SettingsScreen() {
           <button
             onClick={handleTogglePush}
             disabled={pushBusy}
-            className="rounded-lg bg-olive px-4 py-2 text-sm text-white disabled:opacity-30"
+            className="rounded-lg bg-olive min-h-11 px-4 text-sm text-white disabled:opacity-30"
           >
             {pushEnabled ? "Turn off reminders" : "Turn on reminders"}
           </button>
@@ -200,7 +200,7 @@ export function SettingsScreen() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-jungle"
+                className="rounded-lg bg-gold min-h-11 px-4 text-sm font-medium text-jungle"
               >
                 {copyState === "copied" ? "Copied ✓" : "Copy"}
               </button>
@@ -212,13 +212,13 @@ export function SettingsScreen() {
                 <>
                   <button
                     onClick={handleRegenerate}
-                    className="rounded-lg bg-engineering px-4 py-2 text-sm text-white"
+                    className="rounded-lg bg-engineering min-h-11 px-4 text-sm text-white"
                   >
                     Yes, regenerate
                   </button>
                   <button
                     onClick={() => setConfirmingRegenerate(false)}
-                    className="rounded-lg px-4 py-2 text-sm text-beaver hover:text-neutral-100"
+                    className="rounded-lg min-h-11 px-4 text-sm text-beaver hover:text-neutral-100"
                   >
                     Cancel
                   </button>
@@ -226,7 +226,7 @@ export function SettingsScreen() {
               ) : (
                 <button
                   onClick={() => setConfirmingRegenerate(true)}
-                  className="rounded-lg bg-olive px-4 py-2 text-sm text-white"
+                  className="rounded-lg bg-olive min-h-11 px-4 text-sm text-white"
                 >
                   Regenerate
                 </button>

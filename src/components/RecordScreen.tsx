@@ -204,7 +204,7 @@ export function RecordScreen() {
           <button
             onClick={() => setView("voice-idle")}
             aria-label="Back to voice capture"
-            className="rounded-full p-2 text-beaver hover:text-neutral-100"
+            className="rounded-full p-3 text-beaver hover:text-neutral-100"
           >
             <MicIcon />
           </button>
@@ -246,7 +246,7 @@ export function RecordScreen() {
         {/* Plain text, not an alert — no red badges per the README. The detail
             and the discard live in Settings, keeping Record to one action. */}
         {syncCounts.stuck > 0 && (
-          <Link href="/settings#stuck-captures" className="pl-2 text-xs text-beaver underline hover:text-gold">
+          <Link href="/settings#stuck-captures" className="inline-flex min-h-11 items-center pl-2 text-xs text-beaver underline hover:text-gold">
             {syncCounts.stuck === 1 ? "1 capture couldn't sync" : `${syncCounts.stuck} captures couldn't sync`}
           </Link>
         )}

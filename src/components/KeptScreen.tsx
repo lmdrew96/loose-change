@@ -75,7 +75,7 @@ export function KeptScreen() {
             role="tab"
             aria-selected={tab.status === status}
             onClick={() => selectStatus(tab.status)}
-            className={`rounded-full px-3 py-1.5 text-sm ${
+            className={`min-h-11 rounded-full px-4 text-sm ${
               tab.status === status ? "bg-gold font-medium text-jungle" : "text-beaver hover:text-gold"
             }`}
           >
@@ -104,15 +104,15 @@ export function KeptScreen() {
               status === "discarded" ? (
                 <button
                   onClick={() => void restore(entry._id)}
-                  className="shrink-0 text-xs font-medium text-gold underline"
+                  className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-gold underline"
                 >
                   Restore
                 </button>
               ) : (
-                <div className="flex shrink-0 items-center gap-1">
+                <>
                   <button
                     onClick={() => void returnToInbox(entry._id)}
-                    className="text-xs font-medium text-gold underline"
+                    className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-gold underline"
                   >
                     Move to Inbox
                   </button>
@@ -121,11 +121,11 @@ export function KeptScreen() {
                   <button
                     onClick={() => void discard(entry._id)}
                     aria-label="Discard"
-                    className="rounded-full p-2 text-beaver hover:text-engineering"
+                    className="flex h-11 w-11 items-center justify-center rounded-full text-beaver hover:text-engineering"
                   >
                     <TrashIcon size={16} />
                   </button>
-                </div>
+                </>
               )
             }
           />
@@ -133,10 +133,10 @@ export function KeptScreen() {
       </div>
 
       <div className="mt-4 flex justify-between">
-        <button onClick={goPrev} disabled={cursorStack.length <= 1} className="text-sm text-gold disabled:opacity-30">
+        <button onClick={goPrev} disabled={cursorStack.length <= 1} className="min-h-11 px-2 text-sm text-gold disabled:opacity-30">
           ← Previous
         </button>
-        <button onClick={goNext} disabled={!result || result.isDone} className="text-sm text-gold disabled:opacity-30">
+        <button onClick={goNext} disabled={!result || result.isDone} className="min-h-11 px-2 text-sm text-gold disabled:opacity-30">
           Next →
         </button>
       </div>

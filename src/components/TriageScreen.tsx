@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
@@ -9,6 +9,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
 import { DESTINATIONS, destinationLabel, type Destination } from "@/lib/labels";
+import { formatCount } from "@/lib/format";
 
 export function TriageScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -25,6 +26,18 @@ export function TriageScreen() {
   const [cursor, setCursor] = useState(0);
   const [skipped, setSkipped] = useState(0);
   const entry = results[cursor];
+  const untriagedCount = useQuery(api.entries.getUntriagedCount, isAuthenticated ? {} : "skip");
+  // Makes the batch feel finite. Skipped entries are still untriaged, so
+  // they're taken off — "left" means left to look at this session. A capped
+  // count can't be meaningfully reduced, so it's shown as-is ("500+ left").
+  const leftLabel =
+    untriagedCount === undefined
+      ? null
+      : untriagedCount.capped
+        ? formatCount(untriagedCount)
+        : untriagedCount.count - skipped > 0
+          ? String(untriagedCount.count - skipped)
+          : null;
 
   // Covers both "skipped past the end of what's loaded" and the case where a
   // page reactively shrinks out from under us (the entry we just kept no
@@ -106,8 +119,9 @@ export function TriageScreen() {
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
-      <header className="mb-4">
+      <header className="mb-4 flex items-baseline justify-between gap-3">
         <h1 className="font-heading text-2xl">Triage</h1>
+        {leftLabel && <span className="text-sm text-beaver">{leftLabel} left</span>}
       </header>
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -129,7 +143,7 @@ export function TriageScreen() {
                     setCursor(0);
                     setSkipped(0);
                   }}
-                  className="mt-3 text-sm text-gold underline"
+                  className="mt-3 min-h-11 px-2 text-sm text-gold underline"
                 >
                   Go back through them
                 </button>
@@ -149,35 +163,34 @@ export function TriageScreen() {
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      {/* Two by two on a phone so "ControlledChaos" fits unabbreviated; one
+          row on wider screens. The order — and so each action's position —
+          is the same either way. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <button
           onClick={handleKeep}
           disabled={!entry}
-          className="rounded-lg bg-gold py-3 text-sm font-medium text-jungle disabled:opacity-30"
+          className="min-h-12 rounded-lg bg-gold text-sm font-medium text-jungle disabled:opacity-30"
         >
           Keep
         </button>
         <button
           onClick={handleDiscard}
           disabled={!entry}
-          className="rounded-lg bg-engineering py-3 text-sm text-white disabled:opacity-30"
+          className="min-h-12 rounded-lg bg-engineering text-sm text-white disabled:opacity-30"
         >
           Discard
         </button>
-        <button
-          onClick={() => handleSendTo("kindling")}
-          disabled={!entry?.transcript}
-          className="rounded-lg bg-olive py-3 text-sm text-white disabled:opacity-30"
-        >
-          Kindling
-        </button>
-        <button
-          onClick={() => handleSendTo("controlledchaos")}
-          disabled={!entry?.transcript}
-          className="rounded-lg bg-olive py-3 text-sm text-white disabled:opacity-30"
-        >
-          → CC
-        </button>
+        {DESTINATIONS.filter((d) => d.primary).map((d) => (
+          <button
+            key={d.id}
+            onClick={() => handleSendTo(d.id)}
+            disabled={!entry?.transcript}
+            className="min-h-12 rounded-lg bg-olive text-sm text-white disabled:opacity-30"
+          >
+            {d.label}
+          </button>
+        ))}
       </div>
       {/* The other destinations lc_mark_promoted accepts. Behind a toggle so
           the four primary actions keep their fixed positions, but nothing the
@@ -189,7 +202,7 @@ export function TriageScreen() {
               key={d.id}
               onClick={() => handleSendTo(d.id)}
               disabled={!entry?.transcript}
-              className="rounded-lg border border-olive py-2 text-xs text-beaver hover:text-gold disabled:opacity-30"
+              className="min-h-11 rounded-lg border border-olive text-sm text-beaver hover:text-gold disabled:opacity-30"
             >
               {d.label}
             </button>
@@ -201,19 +214,20 @@ export function TriageScreen() {
         <button
           onClick={handleSkip}
           disabled={!entry}
-          className="rounded-full px-4 py-2 text-sm text-beaver hover:text-gold disabled:opacity-30"
+          className="min-h-11 rounded-full px-4 text-sm text-beaver hover:text-gold disabled:opacity-30"
         >
           Skip for now →
         </button>
         <button
           onClick={() => setShowAllDestinations((v) => !v)}
           aria-expanded={showAllDestinations}
-          className="rounded-full px-4 py-2 text-sm text-beaver hover:text-gold"
+          className="min-h-11 rounded-full px-4 text-sm text-beaver hover:text-gold"
         >
           {showAllDestinations ? "Fewer destinations" : "More destinations"}
         </button>
       </div>
-      <p className="mt-1 text-center text-xs text-beaver">K keep · D discard · S skip</p>
+      {/* Keyboard shortcuts only mean anything with a keyboard. */}
+      <p className="mt-1 hidden text-center text-xs text-beaver sm:block">K keep · D discard · S skip</p>
     </main>
   );
 }
@@ -294,10 +308,11 @@ function TriageCard({
       //
       // The cap is viewport-relative, not max-h-full: body is min-h-full (so
       // list screens can grow and scroll the page), which doesn't give a
-      // definite height for a percentage cap to resolve against. 60vh leaves
-      // room for the header, the action grid and the Skip affordance without
-      // any of them going below the fold.
-      className={`flex max-h-[60vh] w-full max-w-md cursor-grab touch-pan-y flex-col rounded-lg border p-6 active:cursor-grabbing ${
+      // definite height for a percentage cap to resolve against. The cap
+      // leaves room for the header, the action grid, the Skip affordance and
+      // the nav bar without any of them going below the fold — lower on a
+      // phone, where the grid takes two rows.
+      className={`flex max-h-[50vh] w-full max-w-md sm:max-h-[60vh] cursor-grab touch-pan-y flex-col rounded-lg border p-6 active:cursor-grabbing ${
         intent === "keep" ? "border-gold" : intent === "discard" ? "border-engineering" : "border-olive"
       }`}
     >

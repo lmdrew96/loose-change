@@ -59,7 +59,7 @@ function StuckCaptureRow({ capture }: { capture: PendingCapture }) {
         </div>
         <div className="min-w-0 flex-1">
           {capture.captureMode === "text" && (
-            <p className="whitespace-pre-wrap text-sm">{capture.transcript}</p>
+            <p className="whitespace-pre-wrap text-base">{capture.transcript}</p>
           )}
           <p className="mt-1 text-xs text-beaver">
             {formatTimestamp(capture.capturedAt)} · tried {capture.attempts ?? 0} times
@@ -75,12 +75,12 @@ function StuckCaptureRow({ capture }: { capture: PendingCapture }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {confirming ? (
           <>
-            <button onClick={handleDiscard} className="rounded-lg bg-engineering px-3 py-1.5 text-xs text-white">
+            <button onClick={handleDiscard} className="min-h-11 rounded-lg bg-engineering px-4 text-sm text-white">
               Yes, discard
             </button>
             <button
               onClick={() => setConfirming(false)}
-              className="rounded-lg px-3 py-1.5 text-xs text-beaver hover:text-neutral-100"
+              className="min-h-11 rounded-lg px-4 text-sm text-beaver hover:text-neutral-100"
             >
               Cancel
             </button>
@@ -88,7 +88,7 @@ function StuckCaptureRow({ capture }: { capture: PendingCapture }) {
         ) : (
           <button
             onClick={() => setConfirming(true)}
-            className="rounded-lg border border-olive px-3 py-1.5 text-xs text-beaver hover:text-gold"
+            className="min-h-11 rounded-lg border border-olive px-4 text-sm text-beaver hover:text-gold"
           >
             Discard
           </button>
@@ -146,7 +146,7 @@ export function StuckCaptures() {
       <button
         onClick={handleRetry}
         disabled={retrying}
-        className="mb-3 rounded-lg bg-olive px-4 py-2 text-sm text-white disabled:opacity-30"
+        className="mb-3 min-h-11 rounded-lg bg-olive px-4 text-sm text-white disabled:opacity-30"
       >
         {retrying ? "Trying…" : "Try again now"}
       </button>
