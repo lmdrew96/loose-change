@@ -11,11 +11,16 @@ const TEXT_DRAFT_KEY = "current";
 // records queued before these fields existed have neither.
 type SyncFailureInfo = { attempts?: number; lastError?: string; lastAttemptAt?: number };
 
+// The account a capture was made under. Absent on captures queued before this
+// existed; those go to whichever account syncs first, as they always did.
+type Ownership = { userId?: string };
+
 export type PendingCapture = (
   | { localId: string; captureMode: "text"; transcript: string; capturedAt: number }
   | { localId: string; captureMode: "voice"; audioBlob: Blob; capturedAt: number }
 ) &
-  SyncFailureInfo;
+  SyncFailureInfo &
+  Ownership;
 
 // Past this many failed sync passes a capture is shown as stuck rather than
 // waiting. It keeps retrying regardless — being stuck only changes how it's
@@ -47,6 +52,69 @@ interface InProgressRecording {
   mimeType: string;
   startedAt: number;
   chunks: Blob[];
+  userId?: string;
+}
+
+// ── Capture ownership ───────────────────────────────────────────────────────
+// Captures used to carry no user id, so anything still queued at sign-out
+// synced into whichever account signed in next on this device. Each capture
+// is now stamped with the signed-in user, and only that user's captures sync.
+
+const OWNER_KEY = "loose-change:capture-owner";
+
+// Set from Clerk once it has loaded (OfflineSyncBootstrap). Null means signed
+// out, or Clerk hasn't loaded yet.
+let signedInUser: string | null = null;
+
+/** Called whenever Clerk reports who's signed in (null once signed out). */
+export function setSignedInUser(userId: string | null): void {
+  signedInUser = userId;
+  try {
+    if (userId) localStorage.setItem(OWNER_KEY, userId);
+    else localStorage.removeItem(OWNER_KEY);
+  } catch {
+    // Storage blocked: stamping just falls back to the in-memory value.
+  }
+  notifyPendingCapturesChanged();
+}
+
+/** Who's signed in right now, per Clerk. What sync checks against. */
+export function getSignedInUser(): string | null {
+  return signedInUser;
+}
+
+/**
+ * Who a new capture belongs to. An offline cold start never loads Clerk, so
+ * this falls back to the last user seen on this device (cleared on sign-out).
+ */
+export function getCaptureOwner(): string | null {
+  if (signedInUser) return signedInUser;
+  try {
+    return localStorage.getItem(OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Stamps a capture with its owner unless it already has one. */
+export function withOwner<T extends Ownership>(capture: T, owner: string | null): T {
+  if (capture.userId !== undefined || owner === null) return capture;
+  return { ...capture, userId: owner };
+}
+
+/**
+ * Whether `userId` may see and sync this capture. Unstamped (legacy) captures
+ * belong to whoever is signed in; a stamped one only to its own account.
+ */
+export function belongsToUser(capture: Ownership, userId: string | null): boolean {
+  if (capture.userId === undefined) return true;
+  return capture.userId === userId;
+}
+
+/** Pending captures the current owner should see or sync. */
+export async function getOwnPendingCaptures(): Promise<PendingCapture[]> {
+  const owner = getCaptureOwner();
+  return (await getPendingCaptures()).filter((c) => belongsToUser(c, owner));
 }
 
 function openDB(): Promise<IDBDatabase> {
@@ -86,7 +154,7 @@ export async function addPendingCapture(capture: PendingCapture): Promise<void> 
   const db = await openDB();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(capture);
+    tx.objectStore(STORE_NAME).put(withOwner(capture, getCaptureOwner()));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -165,7 +233,8 @@ async function startInProgressRecordingInternal(
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(IN_PROGRESS_STORE, "readwrite");
-    tx.objectStore(IN_PROGRESS_STORE).put({ localId, mimeType, startedAt, chunks: [] });
+    const record = withOwner<InProgressRecording>({ localId, mimeType, startedAt, chunks: [] }, getCaptureOwner());
+    tx.objectStore(IN_PROGRESS_STORE).put(record);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -207,7 +276,15 @@ export async function finalizeInProgressRecording(localId: string): Promise<bool
   let saved = false;
   if (record && record.chunks.length > 0) {
     const audioBlob = new Blob(record.chunks, { type: record.mimeType });
-    await addPendingCapture({ localId, captureMode: "voice", audioBlob, capturedAt: record.startedAt });
+    // The recording's own owner, not whoever is signed in now — a salvaged
+    // recording may be finalized after an account switch.
+    await addPendingCapture({
+      localId,
+      captureMode: "voice",
+      audioBlob,
+      capturedAt: record.startedAt,
+      userId: record.userId,
+    });
     saved = true;
   }
 

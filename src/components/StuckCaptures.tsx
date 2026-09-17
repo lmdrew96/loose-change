@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   deletePendingCapture,
-  getPendingCaptures,
+  getOwnPendingCaptures,
   isStuck,
   subscribePendingCaptures,
   type PendingCapture,
@@ -119,7 +119,7 @@ export function StuckCaptures() {
 
   useEffect(() => {
     function refresh() {
-      void getPendingCaptures().then((captures) => setStuck(captures.filter(isStuck)));
+      void getOwnPendingCaptures().then((captures) => setStuck(captures.filter(isStuck)));
     }
     refresh();
     return subscribePendingCaptures(refresh);

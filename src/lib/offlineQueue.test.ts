@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { isDueForRetry, isStuck, STUCK_AFTER_ATTEMPTS, type PendingCapture } from "./offlineQueue";
+import {
+  belongsToUser,
+  isDueForRetry,
+  isStuck,
+  STUCK_AFTER_ATTEMPTS,
+  withOwner,
+  type PendingCapture,
+} from "./offlineQueue";
 
 const base: PendingCapture = { localId: "a", captureMode: "text", transcript: "x", capturedAt: 0 };
 
@@ -45,5 +52,40 @@ describe("isDueForRetry", () => {
     const capture = { ...base, attempts: 50, lastAttemptAt: now };
     expect(isDueForRetry(capture, now + 60 * 60_000 - 1)).toBe(false);
     expect(isDueForRetry(capture, now + 60 * 60_000)).toBe(true);
+  });
+});
+
+describe("belongsToUser", () => {
+  test("a capture only syncs into the account it was made under", () => {
+    const mine = { ...base, userId: "user_a" };
+    expect(belongsToUser(mine, "user_a")).toBe(true);
+    expect(belongsToUser(mine, "user_b")).toBe(false);
+  });
+
+  test("a stamped capture isn't shown to nobody-in-particular", () => {
+    expect(belongsToUser({ ...base, userId: "user_a" }, null)).toBe(false);
+  });
+
+  test("a legacy capture with no owner belongs to whoever is signed in", () => {
+    // Queued before ownership existed. Stranding it would lose the memo.
+    expect(belongsToUser(base, "user_a")).toBe(true);
+    expect(belongsToUser(base, "user_b")).toBe(true);
+    expect(belongsToUser(base, null)).toBe(true);
+  });
+});
+
+describe("withOwner", () => {
+  test("stamps an unowned capture", () => {
+    expect(withOwner(base, "user_a").userId).toBe("user_a");
+  });
+
+  test("never re-stamps a capture that already has an owner", () => {
+    // A salvaged recording is finalized under whoever is signed in now, but it
+    // still belongs to the account that recorded it.
+    expect(withOwner({ ...base, userId: "user_a" }, "user_b").userId).toBe("user_a");
+  });
+
+  test("leaves a capture unowned when nobody is known", () => {
+    expect(withOwner(base, null).userId).toBeUndefined();
   });
 });

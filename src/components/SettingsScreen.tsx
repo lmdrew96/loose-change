@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { StuckCaptures } from "@/components/StuckCaptures";
+import { getOwnPendingCaptures } from "@/lib/offlineQueue";
 import { STATUS_LABELS } from "@/lib/labels";
 import { setTonesEnabled, useTonesEnabled } from "@/lib/recordingFeedback";
 import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
@@ -19,6 +20,8 @@ export function SettingsScreen() {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
+  // Set when signing out would leave this account's captures unsynced.
+  const [unsyncedAtSignOut, setUnsyncedAtSignOut] = useState<number | null>(null);
 
   const tonesEnabled = useTonesEnabled();
   const stats = useQuery(api.entries.getStats, isAuthenticated ? {} : "skip");
@@ -79,6 +82,18 @@ export function SettingsScreen() {
     setConfirmingRegenerate(false);
   }
 
+  async function handleSignOut() {
+    let unsynced = 0;
+    try {
+      unsynced = (await getOwnPendingCaptures()).length;
+    } catch (err) {
+      // Can't read the queue — nothing to warn about that we know of.
+      console.error("Couldn't check for unsynced captures:", err);
+    }
+    if (unsynced > 0) setUnsyncedAtSignOut(unsynced);
+    else void signOut({ redirectUrl: "/sign-in" });
+  }
+
   async function handleTogglePush() {
     setPushError(null);
     setPushBusy(true);
@@ -125,12 +140,35 @@ export function SettingsScreen() {
       <section className="mb-8">
         <h2 className="mb-2 text-sm font-medium text-beaver">Account</h2>
         <p className="mb-3 text-sm">{user?.primaryEmailAddress?.emailAddress}</p>
-        <button
-          onClick={() => signOut({ redirectUrl: "/sign-in" })}
-          className="rounded-lg bg-engineering min-h-11 px-4 text-sm text-white"
-        >
-          Sign out
-        </button>
+        {unsyncedAtSignOut === null ? (
+          <button onClick={handleSignOut} className="min-h-11 rounded-lg bg-engineering px-4 text-sm text-white">
+            Sign out
+          </button>
+        ) : (
+          // Not a hard block: they're safe on the device either way. It's so
+          // signing out doesn't look like it threw them away.
+          <div role="alert" className="space-y-2">
+            <p className="text-sm">
+              {unsyncedAtSignOut === 1 ? "1 capture hasn't" : `${unsyncedAtSignOut} captures haven't`} synced
+              yet. Signing out keeps {unsyncedAtSignOut === 1 ? "it" : "them"} on this device until you sign
+              back in.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => void signOut({ redirectUrl: "/sign-in" })}
+                className="min-h-11 rounded-lg bg-engineering px-4 text-sm text-white"
+              >
+                Sign out
+              </button>
+              <button
+                onClick={() => setUnsyncedAtSignOut(null)}
+                className="min-h-11 rounded-lg px-4 text-sm text-beaver hover:text-neutral-100"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <StuckCaptures />

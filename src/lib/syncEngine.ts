@@ -2,7 +2,9 @@ import { convexClient } from "@/components/ConvexClientProvider";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
+  belongsToUser,
   getPendingCaptures,
+  getSignedInUser,
   deletePendingCapture,
   isDueForRetry,
   recordSyncFailure,
@@ -24,10 +26,15 @@ export async function retryAllPendingCaptures(): Promise<void> {
 
 async function runSync(ignoreBackoff: boolean): Promise<void> {
   if (syncing || typeof navigator === "undefined" || !navigator.onLine) return;
+  // Only Clerk's live answer counts here, never the remembered owner: an
+  // upload runs under the current session, so it must be that user's capture.
+  const userId = getSignedInUser();
+  if (!userId) return;
   syncing = true;
   try {
     const now = Date.now();
-    const pending = await getPendingCaptures();
+    // Another account's captures stay queued, untouched, until it signs in.
+    const pending = (await getPendingCaptures()).filter((c) => belongsToUser(c, userId));
     for (const capture of pending) {
       if (!ignoreBackoff && !isDueForRetry(capture, now)) continue;
       try {

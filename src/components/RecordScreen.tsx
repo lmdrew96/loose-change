@@ -11,7 +11,7 @@ import {
   clearDraftText,
   finalizeInProgressRecording,
   getDraftText,
-  getPendingCaptures,
+  getOwnPendingCaptures,
   isStuck,
   saveDraftText,
   startInProgressRecording,
@@ -111,7 +111,7 @@ export function RecordScreen() {
   // count that never goes down teaches you to ignore it.
   useEffect(() => {
     function refresh() {
-      void getPendingCaptures().then((captures) => {
+      void getOwnPendingCaptures().then((captures) => {
         const stuck = captures.filter(isStuck).length;
         setSyncCounts({ waiting: captures.length - stuck, stuck });
       });
