@@ -35,7 +35,7 @@ One primary action: a large central record button.
 
 ### 3. Archive (`/kept`)
 
-Reverse-chronological, paginated, filtered by status: **Kept**, **Sent on** (promoted), **Discarded**. Every card expands in place to show the full transcript and — for voice entries whose audio hasn't aged out — a player. Discarded entries can be restored here for as long as their 30-day window is open.
+Reverse-chronological, paginated, filtered by status: **Kept**, **Sent on** (promoted), **Discarded**. Every card expands in place to show the full transcript and — for voice entries whose audio hasn't aged out — a player. Discarded entries can be restored here for as long as their 30-day window is open, and each one says how many days it has left.
 
 ### 4. Triage (one entry at a time)
 
@@ -47,6 +47,8 @@ Four fixed-position actions, always in the same place:
 | **Discard** | Soft-delete, 30-day undo window (not instant-gone) |
 | **Send to Kindling** | Hands off transcript text; Kindling's own MCP does the actual write |
 | **Send to CC** | Hands off transcript text; ControlledChaos's own MCP does the actual write |
+
+Every decision shows an **Undo** toast for a few seconds: Keep and Send go back to the Inbox, Discard restores. Kept and sent entries can also be moved back later with **Move to Inbox** in Archive or Search.
 
 Plus **Skip for now** (or `S`), which advances without deciding — a skipped entry stays untriaged and comes back next session. Keyboard: `K` keep, `D` discard, `S` skip.
 
@@ -105,6 +107,7 @@ Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the R
 | `lc_keep` | Mark an entry kept |
 | `lc_discard` | Soft-delete (starts the 30-day undo window) |
 | `lc_undo_discard` | Restore a discarded entry to the status it was discarded from |
+| `lc_return_to_inbox` | Move a kept, sent or discarded entry back to the inbox (the undo for keep/send) |
 | `lc_mark_promoted` | Flag an entry as sent elsewhere + record destination |
 | `lc_retry_transcription` | Retry a voice memo whose transcription timed out |
 | `lc_get_stats` | Untriaged count, keep/discard/promote breakdown — informational only, no gamification |
@@ -123,6 +126,7 @@ Anything the MCP tools can do is doable in the app, and vice versa. `src/lib/mcp
 | `lc_keep` | Triage Keep, `K`, swipe right; Keep from Search |
 | `lc_discard` | Triage Discard, `D`, swipe left; trash from Archive and Search |
 | `lc_undo_discard` | Triage undo toast; Restore from Archive and Search |
+| `lc_return_to_inbox` | Triage Undo after Keep or Send; **Move to Inbox** in Archive and Search |
 | `lc_mark_promoted` | Triage destination buttons, plus **More destinations** |
 | `lc_retry_transcription` | Expand a timed-out voice memo → Try transcribing again |
 | `lc_get_stats` | Settings → Your captures |

@@ -120,3 +120,73 @@ describe("discard/undo restores the status discard was called from", () => {
     expect(entry?.status).toBe("untriaged");
   });
 });
+
+describe("returnToInbox", () => {
+  test("a sent entry goes back to untriaged with its destination and triage time cleared", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.markPromoted, { entryId, destination: "controlledchaos" });
+
+    await owner.mutation(api.entries.returnToInbox, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+    expect(entry?.promotedTo).toBeNull();
+    expect(entry?.triagedAt).toBeUndefined();
+  });
+
+  test("a kept entry goes back with triagedAt cleared", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+
+    await owner.mutation(api.entries.returnToInbox, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+    expect(entry?.triagedAt).toBeUndefined();
+  });
+
+  test("a discarded entry loses its discard bookkeeping", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+    await owner.mutation(api.entries.discardEntry, { entryId });
+
+    await owner.mutation(api.entries.returnToInbox, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+    expect(entry?.discardedAt).toBeNull();
+    expect(entry?.discardedFromStatus).toBeUndefined();
+  });
+
+  test("another user can't move someone else's entry", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+
+    const intruder = t.withIdentity({ subject: "user_intruder" });
+    await expect(intruder.mutation(api.entries.returnToInbox, { entryId })).rejects.toThrow("Entry not found");
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("kept");
+  });
+
+  test("the MCP path needs the secret and the owning user", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.keepEntry, { entryId });
+
+    await expect(
+      t.mutation(api.entries.mcpReturnToInbox, { secret: MCP_SECRET, userId: "user_intruder", entryId }),
+    ).rejects.toThrow("Entry not found");
+    await t.mutation(api.entries.mcpReturnToInbox, { secret: MCP_SECRET, userId: "user_owner", entryId });
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.status).toBe("untriaged");
+  });
+});

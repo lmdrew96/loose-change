@@ -128,6 +128,17 @@ export const TOOLS = [
     },
   },
   {
+    name: "lc_return_to_inbox",
+    description:
+      "Move a kept, promoted or discarded entry back to the untriaged inbox, clearing its destination " +
+      "and triage time. The undo for lc_keep and lc_mark_promoted.",
+    inputSchema: {
+      type: "object",
+      properties: { entry_id: { type: "string" } },
+      required: ["entry_id"],
+    },
+  },
+  {
     name: "lc_mark_promoted",
     description:
       "Flag an entry as sent elsewhere and record the destination. Does not write into the destination " +
@@ -307,6 +318,17 @@ export const dispatchTool = async (
         entryId: entryId as Id<"entries">,
       });
       return textContent({ entry_id: entryId, status });
+    }
+
+    case "lc_return_to_inbox": {
+      const entryId = asString(args.entry_id);
+      if (!entryId) throw new ToolError(-32602, "lc_return_to_inbox requires entry_id");
+      await convex.mutation(api.entries.mcpReturnToInbox, {
+        secret,
+        userId,
+        entryId: entryId as Id<"entries">,
+      });
+      return textContent({ entry_id: entryId, status: "untriaged" });
     }
 
     case "lc_mark_promoted": {

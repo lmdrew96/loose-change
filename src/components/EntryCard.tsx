@@ -6,7 +6,7 @@ import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { formatTimestamp } from "@/lib/format";
+import { discardCountdown, formatTimestamp } from "@/lib/format";
 import { STATUS_LABELS, destinationLabel } from "@/lib/labels";
 
 export type EntryWithAudio = Doc<"entries"> & { audioUrl: string | null };
@@ -83,6 +83,8 @@ export function EntryCard({
   initiallyExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
+  // Read once per mount: a countdown in days doesn't need to tick live.
+  const [now] = useState(() => Date.now());
   const text = transcriptText(entry);
   const isVoice = entry.captureMode === "voice";
   // Retention clears the blob 30 days after triage but keeps the transcript,
@@ -109,6 +111,10 @@ export function EntryCard({
                 a sent entry always names its destination, not just in Search. */}
             {entry.status === "promoted" &&
               (entry.promotedTo ? ` · Sent to ${destinationLabel(entry.promotedTo)}` : ` · ${STATUS_LABELS.promoted}`)}
+            {/* A hidden deadline made visible: how long Restore still works. */}
+            {entry.status === "discarded" &&
+              entry.discardedAt !== null &&
+              ` · ${discardCountdown(entry.discardedAt, now)}`}
             {!expanded && " · tap to expand"}
           </p>
         </button>

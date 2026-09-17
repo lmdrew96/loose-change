@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Doc, Id } from "../../convex/_generated/dataModel";
+import type { Doc } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
-import { useRunAction, useToast } from "@/components/Toast";
+import { useEntryActions } from "@/components/useEntryActions";
 import { DESTINATIONS, destinationLabel, type Destination } from "@/lib/labels";
 
 export function TriageScreen() {
@@ -41,13 +41,8 @@ export function TriageScreen() {
     status === "LoadingMore" ||
     (cursor >= results.length && status === "CanLoadMore");
 
-  const keepEntry = useMutation(api.entries.keepEntry);
-  const discardEntry = useMutation(api.entries.discardEntry);
-  const undoDiscard = useMutation(api.entries.undoDiscard);
   const markPromoted = useMutation(api.entries.markPromoted);
-
-  const showToast = useToast();
-  const runAction = useRunAction();
+  const { keep, discard, offerUndoToInbox, runAction, showToast } = useEntryActions();
   const [showAllDestinations, setShowAllDestinations] = useState(false);
 
   // Deliberately does not mutate: a skipped entry stays untriaged and comes
@@ -59,26 +54,16 @@ export function TriageScreen() {
     setSkipped((n) => n + 1);
   }
 
+  // Every decision here gets the same Undo. Keep and Send used to commit
+  // silently, and nothing could put an entry back in the Inbox afterwards.
   async function handleKeep() {
     if (!entry) return;
-    const entryId = entry._id;
-    await runAction("Couldn't keep that — try again.", () => keepEntry({ entryId }));
+    await keep(entry._id, { undoable: true });
   }
 
   async function handleDiscard() {
     if (!entry) return;
-    const entryId = entry._id;
-    const result = await runAction("Couldn't discard that — try again.", () => discardEntry({ entryId }));
-    if (!result.ok) return;
-    showToast({
-      message: "Discarded",
-      durationMs: 6000,
-      action: { label: "Undo", onClick: () => void handleUndo(entryId) },
-    });
-  }
-
-  async function handleUndo(entryId: Id<"entries">) {
-    await runAction("Couldn't undo that — try again.", () => undoDiscard({ entryId }));
+    await discard(entry._id);
   }
 
   async function handleSendTo(destination: Destination) {
@@ -103,7 +88,7 @@ export function TriageScreen() {
     const result = await runAction(`Copied, but couldn't mark it sent to ${label} — try again.`, () =>
       markPromoted({ entryId, destination }),
     );
-    if (result.ok) showToast({ message: `Copied — paste into ${label}` });
+    if (result.ok) offerUndoToInbox(entryId, `Copied — paste into ${label}`);
   }
 
   // Batch-triage speedup for desktop sessions (README frames Triage as a

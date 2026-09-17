@@ -159,6 +159,23 @@ async function undoDiscardHandler(ctx: MutationCtx, userId: string, entryId: Id<
   return restoredStatus;
 }
 
+// The way back from any decision. Keep and Send had no undo and nothing could
+// return an entry to the untriaged pool, so a thumb-slip in Triage was
+// permanent. A discarded entry is accepted too (its discard bookkeeping is
+// cleared) so callers don't have to know which undo applies.
+async function returnToInboxHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
+  const entry = await requireOwnedEntry(ctx, userId, entryId);
+  if (entry.status === "untriaged") return;
+  await ctx.db.patch(entryId, {
+    status: "untriaged",
+    promotedTo: null,
+    discardedAt: null,
+    discardedFromStatus: undefined,
+    // Untriaged entries keep their audio indefinitely — same as undoDiscard.
+    triagedAt: undefined,
+  });
+}
+
 async function markPromotedHandler(
   ctx: MutationCtx,
   userId: string,
@@ -415,6 +432,14 @@ export const undoDiscard = mutation({
   },
 });
 
+export const returnToInbox = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    const userId = await requireUserId(ctx);
+    await returnToInboxHandler(ctx, userId, entryId);
+  },
+});
+
 export const markPromoted = mutation({
   args: {
     entryId: v.id("entries"),
@@ -523,6 +548,14 @@ export const mcpUndoDiscard = mutation({
     // Returns where the entry actually landed — undo restores to whatever it
     // was discarded from, which isn't always "untriaged".
     return await undoDiscardHandler(ctx, userId, entryId);
+  },
+});
+
+export const mcpReturnToInbox = mutation({
+  args: { secret: v.string(), userId: v.string(), entryId: v.id("entries") },
+  handler: async (ctx, { secret, userId, entryId }) => {
+    requireMcpSecret(secret);
+    await returnToInboxHandler(ctx, userId, entryId);
   },
 });
 

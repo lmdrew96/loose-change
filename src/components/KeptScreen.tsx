@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
-import { useRunAction, useToast } from "@/components/Toast";
+import { useEntryActions } from "@/components/useEntryActions";
 import { STATUS_LABELS } from "@/lib/labels";
 
 const PAGE_SIZE = 20;
@@ -45,30 +45,11 @@ export function KeptScreen() {
     isAuthenticated ? { status, paginationOpts: { numItems: PAGE_SIZE, cursor } } : "skip",
   );
 
-  const discardEntry = useMutation(api.entries.discardEntry);
-  const undoDiscard = useMutation(api.entries.undoDiscard);
-  const showToast = useToast();
-  const runAction = useRunAction();
+  const { discard, restore, returnToInbox } = useEntryActions();
 
   function selectStatus(next: Status) {
     setStatus(next);
     setCursorStack([null]);
-  }
-
-  // The same 30-day discard Triage and Search offer. It used to be called
-  // "Delete" here, which also wrongly implied it was permanent.
-  async function handleDiscard(entryId: Id<"entries">) {
-    const result = await runAction("Couldn't discard that — try again.", () => discardEntry({ entryId }));
-    if (!result.ok) return;
-    showToast({
-      message: "Discarded",
-      durationMs: 6000,
-      action: { label: "Undo", onClick: () => void handleRestore(entryId) },
-    });
-  }
-
-  async function handleRestore(entryId: Id<"entries">) {
-    await runAction("Couldn't restore that — try again.", () => undoDiscard({ entryId }));
   }
 
   function goNext() {
@@ -127,19 +108,29 @@ export function KeptScreen() {
             actions={
               status === "discarded" ? (
                 <button
-                  onClick={() => void handleRestore(entry._id)}
+                  onClick={() => void restore(entry._id)}
                   className="shrink-0 text-xs font-medium text-gold underline"
                 >
                   Restore
                 </button>
               ) : (
-                <button
-                  onClick={() => void handleDiscard(entry._id)}
-                  aria-label="Discard"
-                  className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
-                >
-                  <TrashIcon size={16} />
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => void returnToInbox(entry._id)}
+                    className="text-xs font-medium text-gold underline"
+                  >
+                    Move to Inbox
+                  </button>
+                  {/* The same 30-day discard Triage and Search offer. It was
+                      labelled "Delete" here, which implied it was permanent. */}
+                  <button
+                    onClick={() => void discard(entry._id)}
+                    aria-label="Discard"
+                    className="rounded-full p-2 text-beaver hover:text-engineering"
+                  >
+                    <TrashIcon size={16} />
+                  </button>
+                </div>
               )
             }
           />
