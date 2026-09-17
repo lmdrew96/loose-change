@@ -6,6 +6,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
+import { useRunAction } from "@/components/Toast";
 
 // Mirrors lc_search's `status` parameter, including its optionality — "All"
 // is the tool omitting the argument.
@@ -32,6 +33,7 @@ export function SearchScreen() {
   const undoDiscard = useMutation(api.entries.undoDiscard);
   const discardEntry = useMutation(api.entries.discardEntry);
   const keepEntry = useMutation(api.entries.keepEntry);
+  const runAction = useRunAction();
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
@@ -90,7 +92,7 @@ export function SearchScreen() {
               <div className="flex shrink-0 items-center gap-1">
                 {entry.status === "discarded" ? (
                   <button
-                    onClick={() => void undoDiscard({ entryId: entry._id })}
+                    onClick={() => void runAction("Couldn't restore that — try again.", () => undoDiscard({ entryId: entry._id }))}
                     className="text-xs font-medium text-gold underline"
                   >
                     Restore
@@ -99,14 +101,14 @@ export function SearchScreen() {
                   <>
                     {entry.status !== "kept" && (
                       <button
-                        onClick={() => void keepEntry({ entryId: entry._id })}
+                        onClick={() => void runAction("Couldn't keep that — try again.", () => keepEntry({ entryId: entry._id }))}
                         className="text-xs font-medium text-gold underline"
                       >
                         Keep
                       </button>
                     )}
                     <button
-                      onClick={() => void discardEntry({ entryId: entry._id })}
+                      onClick={() => void runAction("Couldn't discard that — try again.", () => discardEntry({ entryId: entry._id }))}
                       aria-label="Discard"
                       className="rounded-full p-2 text-beaver hover:text-engineering"
                     >

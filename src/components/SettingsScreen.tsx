@@ -18,6 +18,7 @@ export function SettingsScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   const stats = useQuery(api.entries.getStats, isAuthenticated ? {} : "skip");
   const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
@@ -31,7 +32,12 @@ export function SettingsScreen() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    getOrCreateMcpToken({}).then(setToken);
+    getOrCreateMcpToken({})
+      .then(setToken)
+      .catch((err) => {
+        console.error("Couldn't load MCP token:", err);
+        setTokenError("Couldn't load your MCP URL — reload the page to try again.");
+      });
   }, [isAuthenticated, getOrCreateMcpToken]);
 
   useEffect(() => {
@@ -62,8 +68,13 @@ export function SettingsScreen() {
   }
 
   async function handleRegenerate() {
-    const newToken = await regenerateMcpToken({});
-    setToken(newToken);
+    setTokenError(null);
+    try {
+      setToken(await regenerateMcpToken({}));
+    } catch (err) {
+      console.error("Couldn't regenerate MCP token:", err);
+      setTokenError("Couldn't regenerate — your current URL still works. Try again.");
+    }
     setConfirmingRegenerate(false);
   }
 
@@ -236,10 +247,11 @@ export function SettingsScreen() {
             <p role="status" aria-live="polite" className="min-h-5 text-sm text-beaver">
               {copyState === "copied" && "Copied to clipboard."}
               {copyState === "failed" && "Couldn't copy — select the URL above and copy it manually."}
+              {tokenError}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-beaver">Loading…</p>
+          <p className="text-sm text-beaver">{tokenError ?? "Loading…"}</p>
         )}
       </section>
     </main>

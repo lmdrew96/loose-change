@@ -8,6 +8,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
+import { useRunAction, useToast } from "@/components/Toast";
 
 const PAGE_SIZE = 20;
 
@@ -45,7 +46,8 @@ export function KeptScreen() {
 
   const discardEntry = useMutation(api.entries.discardEntry);
   const undoDiscard = useMutation(api.entries.undoDiscard);
-  const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
+  const showToast = useToast();
+  const runAction = useRunAction();
 
   function selectStatus(next: Status) {
     setStatus(next);
@@ -53,15 +55,17 @@ export function KeptScreen() {
   }
 
   async function handleDelete(entryId: Id<"entries">) {
-    await discardEntry({ entryId });
-    setUndoTarget({ entryId });
-    setTimeout(() => setUndoTarget((current) => (current?.entryId === entryId ? null : current)), 6000);
+    const result = await runAction("Couldn't delete that — try again.", () => discardEntry({ entryId }));
+    if (!result.ok) return;
+    showToast({
+      message: "Deleted",
+      durationMs: 6000,
+      action: { label: "Undo", onClick: () => void handleRestore(entryId) },
+    });
   }
 
-  async function handleUndo() {
-    if (!undoTarget) return;
-    await undoDiscard({ entryId: undoTarget.entryId });
-    setUndoTarget(null);
+  async function handleRestore(entryId: Id<"entries">) {
+    await runAction("Couldn't restore that — try again.", () => undoDiscard({ entryId }));
   }
 
   function goNext() {
@@ -120,7 +124,7 @@ export function KeptScreen() {
             actions={
               status === "discarded" ? (
                 <button
-                  onClick={() => void undoDiscard({ entryId: entry._id })}
+                  onClick={() => void handleRestore(entry._id)}
                   className="shrink-0 text-xs font-medium text-gold underline"
                 >
                   Restore
@@ -147,19 +151,6 @@ export function KeptScreen() {
           Next →
         </button>
       </div>
-
-      {undoTarget && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-0 bottom-6 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white"
-        >
-          <span>Deleted</span>
-          <button onClick={handleUndo} className="font-medium text-gold underline">
-            Undo
-          </button>
-        </div>
-      )}
     </main>
   );
 }

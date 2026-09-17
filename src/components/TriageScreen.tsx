@@ -8,6 +8,7 @@ import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
+import { useRunAction, useToast } from "@/components/Toast";
 
 // Mirrors lc_mark_promoted's destination enum exactly. The first two keep
 // their fixed positions in the action grid; the rest live behind a disclosure
@@ -58,8 +59,8 @@ export function TriageScreen() {
   const undoDiscard = useMutation(api.entries.undoDiscard);
   const markPromoted = useMutation(api.entries.markPromoted);
 
-  const [undoTarget, setUndoTarget] = useState<{ entryId: Id<"entries"> } | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useToast();
+  const runAction = useRunAction();
   const [showAllDestinations, setShowAllDestinations] = useState(false);
 
   // Deliberately does not mutate: a skipped entry stays untriaged and comes
@@ -71,32 +72,31 @@ export function TriageScreen() {
     setSkipped((n) => n + 1);
   }
 
-  function flashToast(message: string) {
-    setToast(message);
-    setTimeout(() => setToast(null), 2500);
-  }
-
   async function handleKeep() {
     if (!entry) return;
-    await keepEntry({ entryId: entry._id });
+    const entryId = entry._id;
+    await runAction("Couldn't keep that — try again.", () => keepEntry({ entryId }));
   }
 
   async function handleDiscard() {
     if (!entry) return;
     const entryId = entry._id;
-    await discardEntry({ entryId });
-    setUndoTarget({ entryId });
-    setTimeout(() => setUndoTarget((current) => (current?.entryId === entryId ? null : current)), 6000);
+    const result = await runAction("Couldn't discard that — try again.", () => discardEntry({ entryId }));
+    if (!result.ok) return;
+    showToast({
+      message: "Discarded",
+      durationMs: 6000,
+      action: { label: "Undo", onClick: () => void handleUndo(entryId) },
+    });
   }
 
-  async function handleUndo() {
-    if (!undoTarget) return;
-    await undoDiscard({ entryId: undoTarget.entryId });
-    setUndoTarget(null);
+  async function handleUndo(entryId: Id<"entries">) {
+    await runAction("Couldn't undo that — try again.", () => undoDiscard({ entryId }));
   }
 
   async function handleSendTo(destination: Destination) {
     if (!entry?.transcript) return;
+    const entryId = entry._id;
     const meta = DESTINATIONS.find((d) => d.id === destination)!;
     const label = "full" in meta ? meta.full : meta.label;
 
@@ -108,12 +108,16 @@ export function TriageScreen() {
     try {
       await navigator.clipboard.writeText(entry.transcript);
     } catch {
-      flashToast(`Couldn't copy to clipboard — ${label} wasn't updated`);
+      showToast({ message: `Couldn't copy to clipboard — ${label} wasn't updated` });
       return;
     }
 
-    await markPromoted({ entryId: entry._id, destination });
-    flashToast(`Copied — paste into ${label}`);
+    // The text is already on the clipboard, so say that too — otherwise a
+    // failed mark reads as if the whole send failed.
+    const result = await runAction(`Copied, but couldn't mark it sent to ${label} — try again.`, () =>
+      markPromoted({ entryId, destination }),
+    );
+    if (result.ok) showToast({ message: `Copied — paste into ${label}` });
   }
 
   // Batch-triage speedup for desktop sessions (README frames Triage as a
@@ -244,28 +248,6 @@ export function TriageScreen() {
         </button>
       </div>
       <p className="mt-1 text-center text-xs text-beaver">K keep · D discard · S skip</p>
-
-      {undoTarget && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-0 bottom-24 z-50 mx-auto flex w-fit items-center gap-3 rounded-full bg-olive px-4 py-2 text-sm text-white"
-        >
-          <span>Discarded</span>
-          <button onClick={handleUndo} className="font-medium text-gold underline">
-            Undo
-          </button>
-        </div>
-      )}
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit rounded-full bg-olive px-4 py-2 text-sm text-white"
-        >
-          {toast}
-        </div>
-      )}
     </main>
   );
 }

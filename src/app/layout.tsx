@@ -6,6 +6,8 @@ import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineSyncBootstrap } from "@/components/OfflineSyncBootstrap";
+import { OfflineNotice } from "@/components/OfflineNotice";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -54,8 +56,11 @@ export default function RootLayout({
       >
         <body className="min-h-full flex flex-col">
           <ConvexClientProvider>
-            {children}
-            <OfflineSyncBootstrap />
+            <ToastProvider>
+              <OfflineNotice />
+              {children}
+              <OfflineSyncBootstrap />
+            </ToastProvider>
           </ConvexClientProvider>
           <ServiceWorkerRegistration />
           <InstallPrompt />
