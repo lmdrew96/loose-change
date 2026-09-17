@@ -92,6 +92,16 @@ export default defineSchema({
     p256dh: v.string(),
     auth: v.string(),
     createdAt: v.number(),
+    // When this device wants its reminder, in its own timezone. All absent
+    // on subscriptions made before schedules existed; those keep the old
+    // Sunday 16:00 UTC (see reminderSchedule.ts LEGACY_SCHEDULE).
+    frequency: v.optional(v.union(v.literal("weekly"), v.literal("every3days"))),
+    dayOfWeek: v.optional(v.number()),
+    hour: v.optional(v.number()),
+    timeZone: v.optional(v.string()),
+    // Last successful claim by the hourly cron. What keeps a reminder from
+    // going out twice in one due window.
+    lastSentAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_endpoint", ["endpoint"]),

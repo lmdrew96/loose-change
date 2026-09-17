@@ -101,6 +101,17 @@ Two scheduled Convex functions, both daily.
 
 **Discarded entries** — 30 days after `discardedAt`, the entry is deleted outright (blob first, then the row). This is what closes the undo window: before it existed, "reversible for 30 days" had no closing edge and discarded memos stayed searchable forever.
 
+## Reminders
+
+Optional push notifications (Settings → Reminders) that resurface a random **kept** idea. They never nag about the inbox. Each device picks **once a week** (day + hour) or **every 3 days** (hour), in its own timezone.
+
+An hourly cron (`convex/crons.ts`) runs `push.sendReminders`, which checks each subscription against `convex/reminderSchedule.ts` in the subscription's local time:
+- A reminder is due from its hour for a 3-hour window, so a local hour skipped by DST or a missed run doesn't lose the week.
+- `lastSentAt` allows one send per local day (weekly) or one per 3 local days.
+- Sends are claimed with a compare-and-set, so overlapping runs can't double-send. A failed push releases the claim so the next run retries.
+
+Subscriptions from before schedules existed have no timezone stored and keep the original Sunday 16:00 UTC until changed. Settings shows that time converted to the device's timezone.
+
 ## Export
 
 Settings → **Download all captures** saves every entry as one Markdown file (`loose-change-YYYY-MM-DD.md`): date, capture mode, status, destination, transcript, and the original if it was edited. Audio isn't included, since its links expire. The client pages through `exportEntriesPage` 200 at a time, so a long history never hits Convex's read limit. Where a download doesn't land anywhere obvious (installed iOS apps), a **Share the file instead** link opens the share sheet.

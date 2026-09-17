@@ -15,13 +15,9 @@ crons.daily(
   internal.retention.purgeExpiredDiscards,
 );
 
-// Fixed UTC, so it drifts an hour across DST and ignores the recipient's
-// timezone. Deliberate for now — Sunday 16:00 UTC is late morning US Eastern
-// either way, and per-user scheduling isn't worth the machinery at one user.
-crons.weekly(
-  "send reminder notifications",
-  { dayOfWeek: "sunday", hourUTC: 16, minuteUTC: 0 },
-  internal.push.sendReminders,
-);
+// Hourly, because each device picks its own day, hour and timezone. The
+// action decides who's due (reminderSchedule.ts), so the cron itself carries
+// no schedule.
+crons.hourly("send reminder notifications", { minuteUTC: 0 }, internal.push.sendReminders);
 
 export default crons;

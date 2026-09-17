@@ -14,6 +14,7 @@ import type * as entries from "../entries.js";
 import type * as mcpTokens from "../mcpTokens.js";
 import type * as push from "../push.js";
 import type * as pushData from "../pushData.js";
+import type * as reminderSchedule from "../reminderSchedule.js";
 import type * as retention from "../retention.js";
 import type * as transcription from "../transcription.js";
 
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   mcpTokens: typeof mcpTokens;
   push: typeof push;
   pushData: typeof pushData;
+  reminderSchedule: typeof reminderSchedule;
   retention: typeof retention;
   transcription: typeof transcription;
 }>;

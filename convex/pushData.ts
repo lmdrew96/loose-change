@@ -1,6 +1,15 @@
 import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireUserId } from "./authHelpers";
+import { DEFAULT_HOUR, looksLikeTimeZone } from "./reminderSchedule";
+
+const frequencyValidator = v.union(v.literal("weekly"), v.literal("every3days"));
+
+function validateSchedule(dayOfWeek: number, hour: number, timeZone: string): void {
+  if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) throw new Error("Invalid day of week");
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error("Invalid hour");
+  if (!looksLikeTimeZone(timeZone)) throw new Error("Invalid time zone");
+}
 
 export const getVapidPublicKey = query({
   args: {},
@@ -10,18 +19,65 @@ export const getVapidPublicKey = query({
 });
 
 export const subscribe = mutation({
-  args: { endpoint: v.string(), p256dh: v.string(), auth: v.string() },
-  handler: async (ctx, { endpoint, p256dh, auth }) => {
+  // timeZone is the device's, so a brand-new subscription starts on Sunday
+  // morning local time rather than the legacy UTC slot.
+  args: { endpoint: v.string(), p256dh: v.string(), auth: v.string(), timeZone: v.optional(v.string()) },
+  handler: async (ctx, { endpoint, p256dh, auth, timeZone }) => {
     const userId = await requireUserId(ctx);
     const existing = await ctx.db
       .query("pushSubscriptions")
       .withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint))
       .unique();
     if (existing) {
+      // A re-subscribe keeps whatever schedule the device already had.
       await ctx.db.patch(existing._id, { userId, p256dh, auth });
-    } else {
-      await ctx.db.insert("pushSubscriptions", { userId, endpoint, p256dh, auth, createdAt: Date.now() });
+      return;
     }
+    const schedule =
+      timeZone && looksLikeTimeZone(timeZone)
+        ? { frequency: "weekly" as const, dayOfWeek: 0, hour: DEFAULT_HOUR, timeZone }
+        : {};
+    await ctx.db.insert("pushSubscriptions", { userId, endpoint, p256dh, auth, createdAt: Date.now(), ...schedule });
+  },
+});
+
+// Settings reads the schedule for this device's own subscription only.
+export const getMySchedule = query({
+  args: { endpoint: v.string() },
+  handler: async (ctx, { endpoint }) => {
+    const userId = await requireUserId(ctx);
+    const sub = await ctx.db
+      .query("pushSubscriptions")
+      .withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint))
+      .unique();
+    if (!sub || sub.userId !== userId) return null;
+    return {
+      frequency: sub.frequency,
+      dayOfWeek: sub.dayOfWeek,
+      hour: sub.hour,
+      timeZone: sub.timeZone,
+      lastSentAt: sub.lastSentAt,
+    };
+  },
+});
+
+export const updateSchedule = mutation({
+  args: {
+    endpoint: v.string(),
+    frequency: frequencyValidator,
+    dayOfWeek: v.number(),
+    hour: v.number(),
+    timeZone: v.string(),
+  },
+  handler: async (ctx, { endpoint, frequency, dayOfWeek, hour, timeZone }) => {
+    const userId = await requireUserId(ctx);
+    validateSchedule(dayOfWeek, hour, timeZone);
+    const sub = await ctx.db
+      .query("pushSubscriptions")
+      .withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint))
+      .unique();
+    if (!sub || sub.userId !== userId) throw new Error("Reminders aren't turned on for this device");
+    await ctx.db.patch(sub._id, { frequency, dayOfWeek, hour, timeZone });
   },
 });
 
@@ -43,6 +99,29 @@ export const listSubscriptions = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("pushSubscriptions").collect();
+  },
+});
+
+// Compare-and-set on lastSentAt: only the run that still sees the value it
+// checked gets to send. Two overlapping runs can't both claim one window.
+export const claimReminder = internalMutation({
+  args: { id: v.id("pushSubscriptions"), expectedLastSentAt: v.optional(v.number()), sentAt: v.number() },
+  handler: async (ctx, { id, expectedLastSentAt, sentAt }) => {
+    const sub = await ctx.db.get(id);
+    if (!sub || sub.lastSentAt !== expectedLastSentAt) return false;
+    await ctx.db.patch(id, { lastSentAt: sentAt });
+    return true;
+  },
+});
+
+// Undoes a claim whose push then failed, so the next hourly run in the
+// window can try again — unless something else has claimed it since.
+export const releaseReminder = internalMutation({
+  args: { id: v.id("pushSubscriptions"), claimedAt: v.number(), previousLastSentAt: v.optional(v.number()) },
+  handler: async (ctx, { id, claimedAt, previousLastSentAt }) => {
+    const sub = await ctx.db.get(id);
+    if (!sub || sub.lastSentAt !== claimedAt) return;
+    await ctx.db.patch(id, { lastSentAt: previousLastSentAt });
   },
 });
 

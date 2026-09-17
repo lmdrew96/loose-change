@@ -6,6 +6,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { StuckCaptures } from "@/components/StuckCaptures";
 import { ExportCaptures } from "@/components/ExportCaptures";
+import { ReminderSettings } from "@/components/ReminderSettings";
 import { getOwnPendingCaptures } from "@/lib/offlineQueue";
 import { STATUS_LABELS } from "@/lib/labels";
 import { setTonesEnabled, useTonesEnabled } from "@/lib/recordingFeedback";
@@ -34,6 +35,8 @@ export function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  // This device's subscription, which is what a reminder schedule belongs to.
+  const [pushEndpoint, setPushEndpoint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -48,9 +51,13 @@ export function SettingsScreen() {
   useEffect(() => {
     if (!isPushSupported()) return;
     let cancelled = false;
-    getExistingPushSubscription().then((sub) => {
-      if (!cancelled) setPushEnabled(sub !== null);
-    });
+    getExistingPushSubscription()
+      .then((sub) => {
+        if (cancelled) return;
+        setPushEnabled(sub !== null);
+        setPushEndpoint(sub?.endpoint ?? null);
+      })
+      .catch((err) => console.error("Couldn't check push subscription:", err));
     return () => {
       cancelled = true;
     };
@@ -106,6 +113,7 @@ export function SettingsScreen() {
           await unsubscribePush({ endpoint: sub.endpoint });
         }
         setPushEnabled(false);
+        setPushEndpoint(null);
         return;
       }
 
@@ -113,9 +121,13 @@ export function SettingsScreen() {
         setPushError("Not ready yet — try again in a moment.");
         return;
       }
-      const permission = await Notification.requestPermission();
+      // Once blocked, the browser won't ask again, so say where to undo it.
+      const permission =
+        Notification.permission === "denied" ? "denied" : await Notification.requestPermission();
       if (permission !== "granted") {
-        setPushError("Notification permission denied.");
+        setPushError(
+          "Notifications are blocked for Loose Change. To turn them back on, allow notifications in your browser's site settings (the icon beside the address bar) — or, for the installed app, in your phone's notification settings — then try again.",
+        );
         return;
       }
       const sub = await subscribeToPush(vapidPublicKey);
@@ -123,8 +135,14 @@ export function SettingsScreen() {
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
         throw new Error("Push subscription missing endpoint/keys");
       }
-      await subscribePush({ endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth });
+      await subscribePush({
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
       setPushEnabled(true);
+      setPushEndpoint(json.endpoint);
     } catch {
       setPushError("Couldn't update reminder notifications.");
     } finally {
@@ -241,8 +259,8 @@ export function SettingsScreen() {
         <section className="mb-8">
           <h2 className="mb-2 text-sm font-medium text-beaver">Reminders</h2>
           <p className="mb-3 text-sm text-beaver">
-            Once a week, get a notification resurfacing a random idea you&rsquo;ve kept — not a nag about your
-            inbox, just a nudge to revisit something you already decided mattered.
+            A notification resurfacing a random idea you&rsquo;ve kept, at a time you pick — not a nag about
+            your inbox, just a nudge to revisit something you already decided mattered. The time is per device.
           </p>
           <button
             onClick={handleTogglePush}
@@ -251,6 +269,7 @@ export function SettingsScreen() {
           >
             {pushEnabled ? "Turn off reminders" : "Turn on reminders"}
           </button>
+          {pushEnabled && pushEndpoint && <ReminderSettings endpoint={pushEndpoint} />}
           {pushError && (
             <p role="status" aria-live="polite" className="mt-2 text-sm text-engineering">
               {pushError}
