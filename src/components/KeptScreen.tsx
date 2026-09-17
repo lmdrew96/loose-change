@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -9,6 +9,7 @@ import { TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
 import { STATUS_LABELS } from "@/lib/labels";
+import { replaceQueryParams } from "@/lib/urlState";
 
 const PAGE_SIZE = 20;
 
@@ -23,10 +24,30 @@ const TABS = [
 
 type Status = (typeof TABS)[number]["status"];
 
+const asStatus = (value: string | null): Status => TABS.find((t) => t.status === value)?.status ?? "kept";
+
+// The page position, remembered for this tab (browser session) so coming
+// back from another screen returns to the same page. Cursors are opaque and
+// long, so they stay out of the URL; the tab alone lives there.
+const PAGE_KEY = "loose-change:archive-page";
+
+function loadCursorStack(status: Status): (string | null)[] {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PAGE_KEY) ?? "null") as {
+      status: Status;
+      stack: (string | null)[];
+    } | null;
+    if (saved?.status === status && Array.isArray(saved.stack) && saved.stack.length > 0) return saved.stack;
+  } catch {
+    // Unreadable or blocked storage just means starting on page one.
+  }
+  return [null];
+}
+
 export function KeptScreen() {
   const { isAuthenticated } = useConvexAuth();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<Status>("kept");
+  const status = asStatus(searchParams.get("tab"));
 
   // The weekly reminder deep-links to one specific entry. It may sit well past
   // the first page of the archive, so it's fetched directly and pinned above
@@ -36,7 +57,15 @@ export function KeptScreen() {
     api.entries.getEntry,
     isAuthenticated && highlightedId ? { entryId: highlightedId } : "skip",
   );
-  const [cursorStack, setCursorStack] = useState<(string | null)[]>([null]);
+  const [cursorStack, setCursorStack] = useState<(string | null)[]>(() => loadCursorStack(status));
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PAGE_KEY, JSON.stringify({ status, stack: cursorStack }));
+    } catch {
+      // Non-fatal: the page just won't be remembered.
+    }
+  }, [status, cursorStack]);
   const cursor = cursorStack[cursorStack.length - 1];
 
   const result = useQuery(
@@ -47,7 +76,7 @@ export function KeptScreen() {
   const { discard, restore, returnToInbox } = useEntryActions();
 
   function selectStatus(next: Status) {
-    setStatus(next);
+    replaceQueryParams({ tab: next === "kept" ? null : next });
     setCursorStack([null]);
   }
 
