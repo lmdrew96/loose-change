@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
+import { TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
 import { STATUS_LABELS, type EntryStatus } from "@/lib/labels";
@@ -35,10 +34,7 @@ export function SearchScreen() {
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
-      <header className="mb-4 flex items-center gap-3">
-        <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
-          <ArrowLeftIcon />
-        </Link>
+      <header className="mb-4">
         <h1 className="font-heading text-2xl">Search</h1>
       </header>
 

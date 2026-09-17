@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowLeftIcon } from "@/components/icons";
 import { StuckCaptures } from "@/components/StuckCaptures";
 import { STATUS_LABELS } from "@/lib/labels";
 import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
@@ -118,10 +116,7 @@ export function SettingsScreen() {
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
-      <header className="mb-6 flex items-center gap-3">
-        <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
-          <ArrowLeftIcon />
-        </Link>
+      <header className="mb-6">
         <h1 className="font-heading text-2xl">Settings</h1>
       </header>
 

@@ -4,22 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ArrowLeftIcon, SearchIcon, LayersIcon, ArchiveIcon, SettingsIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
 import { formatCount } from "@/lib/format";
 
 const PAGE_SIZE = 20;
-
-// Icons carry a text label rather than an aria-label alone. Four adjacent
-// unlabelled glyphs is the worst case of a pattern that's hostile to anyone
-// who doesn't already know what each one means — and this row is the app's
-// only navigation.
-const NAV = [
-  { href: "/search", label: "Search", Icon: SearchIcon },
-  { href: "/triage", label: "Triage", Icon: LayersIcon },
-  { href: "/kept", label: "Archive", Icon: ArchiveIcon },
-  { href: "/settings", label: "Settings", Icon: SettingsIcon },
-] as const;
 
 export function InboxScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -43,27 +31,21 @@ export function InboxScreen() {
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
-      <header className="mb-4 flex items-center justify-between">
-        <Link href="/" aria-label="Back to record" className="rounded-full p-2 text-beaver hover:text-gold">
-          <ArrowLeftIcon />
-        </Link>
-        <h1 className="font-heading text-3xl">Inbox</h1>
-        <nav className="flex items-end gap-1">
-          <span className="mr-1 text-sm text-beaver">
-            {untriagedCount === undefined ? "" : formatCount(untriagedCount)}
-          </span>
-          {NAV.map(({ href, label, Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex w-14 flex-col items-center gap-0.5 rounded-lg py-1 text-beaver hover:text-gold"
-            >
-              <Icon size={18} />
-              <span className="text-[10px] leading-none">{label}</span>
-            </Link>
-          ))}
-        </nav>
+      <header className="mb-4">
+        <h1 className="font-heading text-2xl">Inbox</h1>
       </header>
+
+      {/* Triage is the obvious next thing to do with a non-empty inbox, so it's
+          the primary action here rather than one of several equal icons. It
+          also carries the untriaged count — still a plain number, no badge. */}
+      {untriagedCount !== undefined && untriagedCount.count > 0 && (
+        <Link
+          href="/triage"
+          className="mb-4 flex min-h-12 items-center justify-center rounded-lg bg-gold font-medium text-jungle"
+        >
+          Triage {formatCount(untriagedCount)}
+        </Link>
+      )}
 
       <div className="flex-1 space-y-2">
         {result === undefined && <p className="text-sm text-beaver">Loading…</p>}

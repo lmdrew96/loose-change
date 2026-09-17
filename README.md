@@ -27,8 +27,13 @@ One primary action: a large central record button.
 - **Text mode**: small keyboard icon in a corner (secondary, doesn't compete with the record button). Swaps to a minimal text input — auto-focused cursor, single Save action, no formatting toolbar. Loose Change is dark-only by design app-wide (no light theme or toggle), which suits typing in bed as well as anywhere else.
 - Both modes write to the same entry schema, differentiated by `captureMode: "voice" | "text" | "chat"`.
 
+### Navigation
+
+Every screen except Record has the same bar along the bottom: Record · Inbox · Triage · Archive · Search · Settings, icons with text labels, the current screen marked with a bar and a bold label. Record keeps its one primary action and its Inbox link instead.
+
 ### 2. Inbox
 
+- A full-width **Triage N** button at the top whenever there's anything to triage.
 - Reverse-chronological, **paginated — not infinite scroll**.
 - Each card: transcript preview, timestamp, small icon for capture mode (mic / keyboard / chat-bubble).
 - Untriaged count shown as a plain number. No red badges, no streaks, no "you're behind" framing.

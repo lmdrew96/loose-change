@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineSyncBootstrap } from "@/components/OfflineSyncBootstrap";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { ToastProvider } from "@/components/Toast";
+import { AppNav } from "@/components/AppNav";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -59,6 +60,7 @@ export default function RootLayout({
             <ToastProvider>
               <OfflineNotice />
               {children}
+              <AppNav />
               <OfflineSyncBootstrap />
             </ToastProvider>
           </ConvexClientProvider>

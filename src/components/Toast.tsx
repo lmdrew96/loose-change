@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { hasNavBar } from "@/components/AppNav";
 
 export type ToastOptions = {
   message: string;
@@ -41,8 +42,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // Record has no nav bar, so it can sit lower there.
-  const position = pathname === "/" ? "bottom-6" : "bottom-24";
+  // Sits just above the nav bar where there is one.
+  const position = hasNavBar(pathname) ? "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]" : "bottom-6";
 
   return (
     <ToastContext.Provider value={show}>

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
+import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
@@ -107,12 +106,8 @@ export function TriageScreen() {
 
   return (
     <main className="flex flex-1 flex-col bg-jungle p-6 text-neutral-100">
-      <header className="mb-4 flex items-center justify-between">
-        <Link href="/inbox" aria-label="Back to inbox" className="rounded-full p-2 text-beaver hover:text-gold">
-          <ArrowLeftIcon />
-        </Link>
+      <header className="mb-4">
         <h1 className="font-heading text-2xl">Triage</h1>
-        <span className="w-5" />
       </header>
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
