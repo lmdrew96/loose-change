@@ -176,6 +176,39 @@ async function returnToInboxHandler(ctx: MutationCtx, userId: string, entryId: I
   });
 }
 
+// Editable only once there's text. A voice memo still transcribing has
+// nothing to correct yet, and a webhook landing afterwards must not overwrite
+// the correction (see setTranscript).
+function canEditTranscript(entry: Doc<"entries">): entry is Doc<"entries"> & { transcript: string } {
+  return entry.transcript !== null && entry.transcriptionStatus !== "pending";
+}
+
+async function updateTranscriptHandler(
+  ctx: MutationCtx,
+  userId: string,
+  entryId: Id<"entries">,
+  transcript: string,
+) {
+  const entry = await requireOwnedEntry(ctx, userId, entryId);
+  const text = transcript.trim();
+  if (text === "") throw new Error("A transcript can't be empty");
+  if (!canEditTranscript(entry)) throw new Error("There's no transcript to edit yet");
+  if (text === entry.transcript) return;
+
+  const original = entry.originalTranscript ?? entry.transcript;
+  await ctx.db.patch(entryId, {
+    transcript: text,
+    // Editing it back to exactly what was captured is the same as reverting.
+    originalTranscript: text === original ? undefined : original,
+  });
+}
+
+async function revertTranscriptHandler(ctx: MutationCtx, userId: string, entryId: Id<"entries">) {
+  const entry = await requireOwnedEntry(ctx, userId, entryId);
+  if (entry.originalTranscript === undefined) throw new Error("This transcript hasn't been edited");
+  await ctx.db.patch(entryId, { transcript: entry.originalTranscript, originalTranscript: undefined });
+}
+
 async function markPromotedHandler(
   ctx: MutationCtx,
   userId: string,
@@ -304,6 +337,8 @@ export const getEntryAwaitingTranscript = internalQuery({
     const entry = await ctx.db.get(id);
     if (!entry) return null;
     if (entry.transcriptionStatus !== "pending" && entry.transcriptionStatus !== "timed_out") return null;
+    // The user has already corrected the text by hand; a late result loses.
+    if (entry.originalTranscript !== undefined) return null;
     // Undefined when the webhook beat setTranscriptionJobId to the commit.
     if (entry.transcriptionJobId !== undefined && entry.transcriptionJobId !== jobId) return null;
     return id;
@@ -327,6 +362,14 @@ export const setTranscriptionTimedOut = internalMutation({
 export const setTranscript = internalMutation({
   args: { entryId: v.id("entries"), transcript: v.string() },
   handler: async (ctx, { entryId, transcript }) => {
+    const entry = await ctx.db.get(entryId);
+    if (!entry) return;
+    // Second line of defence after getEntryAwaitingTranscript: a retry's
+    // action can also land here. A hand-edited transcript is never replaced.
+    if (entry.originalTranscript !== undefined) {
+      await ctx.db.patch(entryId, { transcriptionStatus: "done" });
+      return;
+    }
     await ctx.db.patch(entryId, { transcript, transcriptionStatus: "done" });
   },
 });
@@ -451,6 +494,22 @@ export const markPromoted = mutation({
   },
 });
 
+export const updateTranscript = mutation({
+  args: { entryId: v.id("entries"), transcript: v.string() },
+  handler: async (ctx, { entryId, transcript }) => {
+    const userId = await requireUserId(ctx);
+    await updateTranscriptHandler(ctx, userId, entryId, transcript);
+  },
+});
+
+export const revertTranscript = mutation({
+  args: { entryId: v.id("entries") },
+  handler: async (ctx, { entryId }) => {
+    const userId = await requireUserId(ctx);
+    await revertTranscriptHandler(ctx, userId, entryId);
+  },
+});
+
 export const retryTranscription = mutation({
   args: { entryId: v.id("entries") },
   handler: async (ctx, { entryId }) => {
@@ -569,6 +628,22 @@ export const mcpMarkPromoted = mutation({
   handler: async (ctx, { secret, userId, entryId, destination }) => {
     requireMcpSecret(secret);
     await markPromotedHandler(ctx, userId, entryId, destination);
+  },
+});
+
+export const mcpUpdateTranscript = mutation({
+  args: { secret: v.string(), userId: v.string(), entryId: v.id("entries"), transcript: v.string() },
+  handler: async (ctx, { secret, userId, entryId, transcript }) => {
+    requireMcpSecret(secret);
+    await updateTranscriptHandler(ctx, userId, entryId, transcript);
+  },
+});
+
+export const mcpRevertTranscript = mutation({
+  args: { secret: v.string(), userId: v.string(), entryId: v.id("entries") },
+  handler: async (ctx, { secret, userId, entryId }) => {
+    requireMcpSecret(secret);
+    await revertTranscriptHandler(ctx, userId, entryId);
   },
 });
 

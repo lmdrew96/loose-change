@@ -52,6 +52,9 @@ describe("argument validation", () => {
     ["lc_retry_transcription", {}],
     ["lc_search", {}],
     ["lc_capture_text", {}],
+    ["lc_update_transcript", { entry_id: "abc" }],
+    ["lc_update_transcript", { entry_id: "abc", transcript: "   " }],
+    ["lc_revert_transcript", {}],
     ["lc_mark_promoted", { entry_id: "abc" }],
     ["lc_mark_promoted", { entry_id: "abc", destination: "somewhere-else" }],
   ])("%s rejects invalid args with -32602", async (name, args) => {
@@ -118,6 +121,8 @@ const UI_SURFACE: Record<string, string> = {
   lc_return_to_inbox: "TriageScreen undo toast after Keep/Send; KeptScreen + SearchScreen Move to Inbox",
   lc_mark_promoted: "TriageScreen destination buttons + More destinations disclosure",
   lc_retry_transcription: "EntryCard — expand a timed-out voice memo, Try transcribing again",
+  lc_update_transcript: "EntryCard + Triage card — Edit transcript, Save",
+  lc_revert_transcript: "EntryCard + Triage card — Revert to original on an edited transcript",
   lc_get_stats: "SettingsScreen — Your captures breakdown",
   lc_capture_text: "RecordScreen — text mode",
 };

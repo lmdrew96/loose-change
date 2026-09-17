@@ -69,6 +69,7 @@ entries {
   userId
   captureMode: "voice" | "text" | "chat"
   transcript: string | null       // null until transcription completes (voice only)
+  originalTranscript?: string      // the captured text, saved on the first hand edit; absent if never edited
   audioStorageId: string | null   // Convex storage ref; null for text/chat entries
   transcriptionStatus: "n/a" | "pending" | "done" | "failed" | "timed_out"
   transcriptionJobId?: string      // AssemblyAI job id; a retry re-polls it instead of resubmitting
@@ -89,6 +90,7 @@ entries {
 - AssemblyAI calls back when the job finishes, with the `X-Loose-Change-Webhook-Secret` header set to `ASSEMBLYAI_WEBHOOK_SECRET`. A call without the right secret gets a 401 and writes nothing. The webhook only carries the job id, so a scheduled action fetches the text and sets `transcriptionStatus: "done"`. Only an entry still waiting on that exact job is written.
 - Never blocks capture — entry shows "transcribing…" in the inbox until it resolves.
 - `timed_out` is retryable: expand the card and **Try transcribing again**, which checks the job already in AssemblyAI's queue once rather than resubmitting. It's what entries from the polling era landed in, what a retry of a still-queued job returns to, and what a webhook becomes if its transcript couldn't be read.
+- Transcripts can be corrected by hand once they exist (**Edit transcript** on an expanded card or in Triage). The first edit saves the captured text in `originalTranscript`, so **Revert to original** always works, and a transcription result that arrives later never overwrites a hand edit.
 - `failed` (bad key, API error, undecodable audio) has no retry. If a transcript comes back garbled, the audio stays playable alongside it — that's the fallback, not a re-run button.
 
 ## Retention
@@ -117,6 +119,8 @@ Triage's two one-tap handoff buttons stay Kindling and ControlledChaos — the R
 | `lc_return_to_inbox` | Move a kept, sent or discarded entry back to the inbox (the undo for keep/send) |
 | `lc_mark_promoted` | Flag an entry as sent elsewhere + record destination |
 | `lc_retry_transcription` | Retry a voice memo whose transcription timed out |
+| `lc_update_transcript` | Correct a transcript; the original is kept the first time |
+| `lc_revert_transcript` | Restore an edited transcript to the original |
 | `lc_get_stats` | Untriaged count, keep/discard/promote breakdown — informational only, no gamification |
 | `lc_capture_text` | Capture a thought directly from a chat conversation (`captureMode: "chat"`), skipping the app entirely |
 
@@ -136,6 +140,8 @@ Anything the MCP tools can do is doable in the app, and vice versa. `src/lib/mcp
 | `lc_return_to_inbox` | Triage Undo after Keep or Send; **Move to Inbox** in Archive and Search |
 | `lc_mark_promoted` | Triage destination buttons, plus **More destinations** |
 | `lc_retry_transcription` | Expand a timed-out voice memo → Try transcribing again |
+| `lc_update_transcript` | Expand a card (or on the Triage card) → **Edit transcript** |
+| `lc_revert_transcript` | Edited card → **Revert to original** |
 | `lc_get_stats` | Settings → Your captures |
 | `lc_capture_text` | Record → text mode |
 

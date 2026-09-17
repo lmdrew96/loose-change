@@ -6,6 +6,11 @@ export default defineSchema({
     userId: v.string(),
     captureMode: v.union(v.literal("voice"), v.literal("text"), v.literal("chat")),
     transcript: v.union(v.string(), v.null()),
+    // The transcript as it was before the user first edited it — set on the
+    // first edit only, so any number of later edits can still be reverted to
+    // what was actually captured. Absent means never edited. Search keeps
+    // indexing `transcript`, the corrected text.
+    originalTranscript: v.optional(v.string()),
     audioStorageId: v.union(v.id("_storage"), v.null()),
     transcriptionStatus: v.union(
       v.literal("n/a"),

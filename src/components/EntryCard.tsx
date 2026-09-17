@@ -8,6 +8,7 @@ import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { discardCountdown, formatTimestamp } from "@/lib/format";
 import { STATUS_LABELS, destinationLabel } from "@/lib/labels";
+import { TranscriptActions, TranscriptEditor, isEdited } from "@/components/TranscriptEditor";
 
 export type EntryWithAudio = Doc<"entries"> & { audioUrl: string | null };
 
@@ -83,6 +84,7 @@ export function EntryCard({
   initiallyExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [editing, setEditing] = useState(false);
   // Read once per mount: a countdown in days doesn't need to tick live.
   const [now] = useState(() => Date.now());
   const text = transcriptText(entry);
@@ -98,31 +100,39 @@ export function EntryCard({
         <div className="mt-0.5 shrink-0 text-beaver">
           <CaptureModeIcon mode={entry.captureMode} />
         </div>
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          aria-expanded={expanded}
-          className="min-w-0 flex-1 text-left"
-        >
-          <p className={`text-base ${expanded ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{text}</p>
-          <p className="mt-1 text-xs text-beaver">
-            {formatTimestamp(entry.createdAt)}
-            {showStatus && entry.status !== "promoted" && ` · ${STATUS_LABELS[entry.status]}`}
-            {/* "Where did I send that?" is exactly the gap this app covers, so
-                a sent entry always names its destination, not just in Search. */}
-            {entry.status === "promoted" &&
-              (entry.promotedTo ? ` · Sent to ${destinationLabel(entry.promotedTo)}` : ` · ${STATUS_LABELS.promoted}`)}
-            {/* A hidden deadline made visible: how long Restore still works. */}
-            {entry.status === "discarded" &&
-              entry.discardedAt !== null &&
-              ` · ${discardCountdown(entry.discardedAt, now)}`}
-            {!expanded && " · tap to expand"}
-          </p>
-        </button>
+        {editing ? (
+          <div className="min-w-0 flex-1">
+            <TranscriptEditor entry={entry} onDone={() => setEditing(false)} />
+          </div>
+        ) : (
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            aria-expanded={expanded}
+            className="min-w-0 flex-1 text-left"
+          >
+            <p className={`text-base ${expanded ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{text}</p>
+            <p className="mt-1 text-xs text-beaver">
+              {formatTimestamp(entry.createdAt)}
+              {showStatus && entry.status !== "promoted" && ` · ${STATUS_LABELS[entry.status]}`}
+              {/* "Where did I send that?" is exactly the gap this app covers, so
+                  a sent entry always names its destination, not just in Search. */}
+              {entry.status === "promoted" &&
+                (entry.promotedTo ? ` · Sent to ${destinationLabel(entry.promotedTo)}` : ` · ${STATUS_LABELS.promoted}`)}
+              {/* A hidden deadline made visible: how long Restore still works. */}
+              {entry.status === "discarded" &&
+                entry.discardedAt !== null &&
+                ` · ${discardCountdown(entry.discardedAt, now)}`}
+              {isEdited(entry) && " · Edited"}
+              {!expanded && " · tap to expand"}
+            </p>
+          </button>
+        )}
       </div>
       {/* Below the text rather than beside it: full-size tap targets next to
           the transcript would squeeze it to a sliver on a phone. */}
       {actions && <div className="mt-1 flex flex-wrap items-center justify-end gap-1">{actions}</div>}
 
+      {expanded && !editing && <TranscriptActions entry={entry} onEdit={() => setEditing(true)} />}
       {expanded && isVoice && entry.audioUrl && <AudioPlayer src={entry.audioUrl} />}
       {expanded && entry.transcriptionStatus === "timed_out" && entry.audioStorageId !== null && (
         <RetryTranscription entryId={entry._id} />

@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { TranscriptActions, TranscriptEditor, isEdited } from "@/components/TranscriptEditor";
 import { transcriptPlaceholder } from "@/components/EntryCard";
 import { useEntryActions } from "@/components/useEntryActions";
 import { DESTINATIONS, destinationLabel, destinationUrl, type Destination } from "@/lib/labels";
@@ -107,11 +108,12 @@ export function TriageScreen() {
   }
 
   // Batch-triage speedup for desktop sessions (README frames Triage as a
-  // batch/later activity). No text inputs live on this screen, so no need to
-  // guard against typing focus.
+  // batch/later activity). Ignored while typing — the transcript editor
+  // lives on this screen, and a "k" in a correction mustn't keep the entry.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof HTMLElement && e.target.closest("textarea, input, [contenteditable]")) return;
       if (e.key === "k" || e.key === "K") void handleKeep();
       else if (e.key === "d" || e.key === "D") void handleDiscard();
       else if (e.key === "s" || e.key === "S") handleSkip();
@@ -255,6 +257,7 @@ function TriageCard({
   const [dragging, setDragging] = useState(false);
   const [flying, setFlying] = useState<"keep" | "discard" | null>(null);
   const dragStartX = useRef<number | null>(null);
+  const [editing, setEditing] = useState(false);
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (flying) return;
@@ -342,12 +345,22 @@ function TriageCard({
         ) : (
           <ChatBubbleIcon size={16} />
         )}
-        <span className="text-xs">{new Date(entry.createdAt).toLocaleString()}</span>
+        <span className="text-xs">
+          {new Date(entry.createdAt).toLocaleString()}
+          {isEdited(entry) && " · Edited"}
+        </span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <p className="whitespace-pre-wrap text-base">
-          {entry.transcript ?? transcriptPlaceholder(entry.transcriptionStatus)}
-        </p>
+        {editing ? (
+          <TranscriptEditor entry={entry} onDone={() => setEditing(false)} />
+        ) : (
+          <>
+            <p className="whitespace-pre-wrap text-base">
+              {entry.transcript ?? transcriptPlaceholder(entry.transcriptionStatus)}
+            </p>
+            <TranscriptActions entry={entry} onEdit={() => setEditing(true)} />
+          </>
+        )}
       </div>
       {entry.captureMode === "voice" && entry.audioUrl && (
         <div className="shrink-0">

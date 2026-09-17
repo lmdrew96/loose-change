@@ -1,6 +1,6 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -188,5 +188,105 @@ describe("returnToInbox", () => {
     await t.mutation(api.entries.mcpReturnToInbox, { secret: MCP_SECRET, userId: "user_owner", entryId });
     const entry = await t.run((ctx) => ctx.db.get(entryId));
     expect(entry?.status).toBe("untriaged");
+  });
+});
+
+describe("transcript editing", () => {
+  test("the original is captured on the first edit only", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "first fix" });
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "second fix" });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.transcript).toBe("second fix");
+    expect(entry?.originalTranscript).toBe("mine");
+  });
+
+  test("revert restores the original and clears the marker", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "fixed" });
+
+    await owner.mutation(api.entries.revertTranscript, { entryId });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.transcript).toBe("mine");
+    expect(entry?.originalTranscript).toBeUndefined();
+  });
+
+  test("editing back to the original counts as a revert", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "fixed" });
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "  mine " });
+
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.transcript).toBe("mine");
+    expect(entry?.originalTranscript).toBeUndefined();
+  });
+
+  test("an empty transcript is rejected", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await expect(owner.mutation(api.entries.updateTranscript, { entryId, transcript: "  " })).rejects.toThrow(
+      "can't be empty",
+    );
+  });
+
+  test("a memo still transcribing can't be edited", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await t.run((ctx) => ctx.db.patch(entryId, { transcript: null, transcriptionStatus: "pending" }));
+    await expect(owner.mutation(api.entries.updateTranscript, { entryId, transcript: "x" })).rejects.toThrow(
+      "no transcript to edit",
+    );
+  });
+
+  test("reverting an unedited transcript is an error", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await expect(owner.mutation(api.entries.revertTranscript, { entryId })).rejects.toThrow("hasn't been edited");
+  });
+
+  test("another user can't edit someone else's transcript", async () => {
+    const t = convexTest(schema, modules);
+    const entryId = await createOwnedEntry(t, "user_owner");
+    const intruder = t.withIdentity({ subject: "user_intruder" });
+    await expect(intruder.mutation(api.entries.updateTranscript, { entryId, transcript: "x" })).rejects.toThrow(
+      "Entry not found",
+    );
+    await expect(
+      t.mutation(api.entries.mcpUpdateTranscript, {
+        secret: MCP_SECRET,
+        userId: "user_intruder",
+        entryId,
+        transcript: "x",
+      }),
+    ).rejects.toThrow("Entry not found");
+  });
+
+  test("a late transcription result never overwrites a hand edit", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ subject: "user_owner" });
+    const entryId = await createOwnedEntry(t, "user_owner");
+    await owner.mutation(api.entries.updateTranscript, { entryId, transcript: "corrected by hand" });
+    // Simulate a job still outstanding (e.g. timed out, then retried).
+    await t.run((ctx) => ctx.db.patch(entryId, { transcriptionStatus: "timed_out", transcriptionJobId: "job_1" }));
+
+    const awaiting = await t.query(internal.entries.getEntryAwaitingTranscript, { entryId, jobId: "job_1" });
+    expect(awaiting).toBeNull();
+
+    await t.mutation(internal.entries.setTranscript, { entryId, transcript: "machine text" });
+    const entry = await t.run((ctx) => ctx.db.get(entryId));
+    expect(entry?.transcript).toBe("corrected by hand");
+    expect(entry?.transcriptionStatus).toBe("done");
   });
 });

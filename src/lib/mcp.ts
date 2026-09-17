@@ -168,6 +168,27 @@ export const TOOLS = [
     },
   },
   {
+    name: "lc_update_transcript",
+    description:
+      "Correct an entry's transcript (e.g. a misheard word). The text as first captured is kept the " +
+      "first time, so lc_revert_transcript can always restore it. Not allowed while a voice memo is " +
+      "still transcribing. Leading/trailing whitespace is trimmed; empty text is rejected.",
+    inputSchema: {
+      type: "object",
+      properties: { entry_id: { type: "string" }, transcript: { type: "string" } },
+      required: ["entry_id", "transcript"],
+    },
+  },
+  {
+    name: "lc_revert_transcript",
+    description: "Restore an edited entry's transcript to the text as originally captured.",
+    inputSchema: {
+      type: "object",
+      properties: { entry_id: { type: "string" } },
+      required: ["entry_id"],
+    },
+  },
+  {
     name: "lc_get_stats",
     description:
       "Untriaged count and keep/discard/promote breakdown. Counts are capped at 500 per status; " +
@@ -358,6 +379,32 @@ export const dispatchTool = async (
         entryId: entryId as Id<"entries">,
       });
       return textContent({ entry_id: entryId, transcriptionStatus: "pending" });
+    }
+
+    case "lc_update_transcript": {
+      const entryId = asString(args.entry_id);
+      const transcript = asString(args.transcript)?.trim();
+      if (!entryId || !transcript) {
+        throw new ToolError(-32602, "lc_update_transcript requires entry_id and a non-empty transcript");
+      }
+      await convex.mutation(api.entries.mcpUpdateTranscript, {
+        secret,
+        userId,
+        entryId: entryId as Id<"entries">,
+        transcript,
+      });
+      return textContent({ entry_id: entryId, transcript, edited: true });
+    }
+
+    case "lc_revert_transcript": {
+      const entryId = asString(args.entry_id);
+      if (!entryId) throw new ToolError(-32602, "lc_revert_transcript requires entry_id");
+      await convex.mutation(api.entries.mcpRevertTranscript, {
+        secret,
+        userId,
+        entryId: entryId as Id<"entries">,
+      });
+      return textContent({ entry_id: entryId, edited: false });
     }
 
     case "lc_get_stats": {
