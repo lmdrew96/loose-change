@@ -19,6 +19,14 @@ import {
 } from "@/lib/offlineQueue";
 import { syncPendingCaptures } from "@/lib/syncEngine";
 import { formatCount } from "@/lib/format";
+import {
+  START_VIBRATION,
+  STOP_VIBRATION,
+  playTone,
+  primeTones,
+  useWakeLock,
+  vibrate,
+} from "@/lib/recordingFeedback";
 import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon, XIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
@@ -77,6 +85,9 @@ export function RecordScreen() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Released on stop, cancel and unmount by the hook itself.
+  useWakeLock(view === "voice-recording");
+
   useEffect(() => {
     if (view === "text") textareaRef.current?.focus();
   }, [view]);
@@ -124,6 +135,7 @@ export function RecordScreen() {
 
   async function startRecording() {
     setMicError(null);
+    primeTones();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -138,6 +150,11 @@ export function RecordScreen() {
       // recorder.start() — offlineQueue serializes this against chunk
       // appends, so no chunk can arrive before the record exists.
       recorder.onstart = () => {
+        // Confirmation that it's actually listening, for when the screen
+        // can't be looked at. Fired here rather than on tap so a mic failure
+        // never buzzes as if it had started.
+        vibrate(START_VIBRATION);
+        playTone("start");
         pendingAppendsRef.current.push(
           startInProgressRecording(localId, recorder.mimeType || "audio/webm", startedAt),
         );
@@ -157,6 +174,9 @@ export function RecordScreen() {
         }
         const saved = await finalizeInProgressRecording(localId);
         if (saved) {
+          // Nothing on cancel — only a saved memo gets the "done" pattern.
+          vibrate(STOP_VIBRATION);
+          playTone("stop");
           void syncPendingCaptures();
           setView("saved");
         } else {

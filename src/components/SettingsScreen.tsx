@@ -6,6 +6,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { StuckCaptures } from "@/components/StuckCaptures";
 import { STATUS_LABELS } from "@/lib/labels";
+import { setTonesEnabled, useTonesEnabled } from "@/lib/recordingFeedback";
 import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
 
 export function SettingsScreen() {
@@ -19,6 +20,7 @@ export function SettingsScreen() {
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
 
+  const tonesEnabled = useTonesEnabled();
   const stats = useQuery(api.entries.getStats, isAuthenticated ? {} : "skip");
   const vapidPublicKey = useQuery(api.pushData.getVapidPublicKey, isAuthenticated ? {} : "skip");
   const subscribePush = useMutation(api.pushData.subscribe);
@@ -164,6 +166,23 @@ export function SettingsScreen() {
             )}
           </>
         )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-2 text-sm font-medium text-beaver">Recording</h2>
+        <p className="mb-3 text-sm text-beaver">
+          Phones that support it vibrate once when recording starts and twice when it&rsquo;s saved, and the
+          screen stays on while you record.
+        </p>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={tonesEnabled}
+            onChange={(e) => setTonesEnabled(e.target.checked)}
+            className="h-5 w-5 accent-gold"
+          />
+          Also play a short sound when recording starts and stops (this device only)
+        </label>
       </section>
 
       {/* Explained up front, so "Audio was cleared" on an old card isn't the

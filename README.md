@@ -22,6 +22,7 @@ Capture must never require a decision. No tagging, no titling, no categorizing a
 One primary action: a large central record button.
 
 - **Voice mode**: tap to start, tap to stop (no press-and-hold — needs to work one-handed while driving). Audio saves to local storage first, then background-syncs to Convex once connected. Never blocks on network. Instant "Saved ✓" feedback, returns to record button.
+- **Eyes-off**: while recording, the screen is kept awake (Wake Lock API). Where the phone supports it, it vibrates once on start and twice when the memo is saved (not on cancel). An optional start/stop sound is off by default (Settings → Recording, per device). iOS Safari has no vibration.
 - **Offline**: the service worker caches the Record shell after the first signed-in visit, so opening the installed app with no signal lands on Record and capture works. Inbox / Triage / Kept / Search need the network and fall back to `/offline`.
 - **Sync status**: "N pending sync" counts captures waiting to upload. A capture that fails 5 sync passes is shown separately as "couldn't sync" and links to Settings, where you can hear/read it, see the last error, retry, or discard it. It never gets dropped automatically.
 - **Text mode**: small keyboard icon in a corner (secondary, doesn't compete with the record button). Swaps to a minimal text input — auto-focused cursor, single Save action, no formatting toolbar. Loose Change is dark-only by design app-wide (no light theme or toggle), which suits typing in bed as well as anywhere else.
