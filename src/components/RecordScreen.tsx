@@ -27,6 +27,8 @@ import {
   useWakeLock,
   vibrate,
 } from "@/lib/recordingFeedback";
+import { SHARE_PARAMS, buildSharedTranscript } from "@/lib/share";
+import { useToast } from "@/components/Toast";
 import { MicIcon, StopIcon, CheckIcon, KeyboardIcon, InboxIcon, XIcon } from "@/components/icons";
 
 type View = "voice-idle" | "voice-recording" | "saved" | "text";
@@ -97,6 +99,50 @@ export function RecordScreen() {
     const timer = setTimeout(() => setView("voice-idle"), 1200);
     return () => clearTimeout(timer);
   }, [view]);
+
+  const showToast = useToast();
+
+  // Two ways in through the URL:
+  // - the OS share sheet (manifest share_target) hands over title/text/url,
+  //   which become one text capture through the normal offline queue;
+  // - the "Type a thought" home-screen shortcut opens text mode.
+  // Record is the target rather than a route of its own because its shell is
+  // the one the service worker keeps for offline starts, so a share with no
+  // signal still lands and queues. Signed out, Clerk's redirect carries the
+  // query string through sign-in and back here.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = buildSharedTranscript({
+      title: params.get(SHARE_PARAMS.title),
+      text: params.get(SHARE_PARAMS.text),
+      url: params.get(SHARE_PARAMS.url),
+    });
+    const wantsText = params.get("mode") === "text";
+    if (shared === null && !wantsText) return;
+
+    // Cleared before saving, so a reload (or Strict Mode's second run) can't
+    // queue the same share twice.
+    window.history.replaceState(null, "", "/");
+
+    const landOn: Promise<View> =
+      shared === null
+        ? Promise.resolve("text")
+        : addPendingCapture({
+            localId: crypto.randomUUID(),
+            captureMode: "text",
+            transcript: shared,
+            capturedAt: Date.now(),
+          }).then(() => {
+            void syncPendingCaptures();
+            return "saved";
+          });
+    landOn
+      .then(setView)
+      .catch((err) => {
+        console.error("Couldn't save shared text:", err);
+        showToast({ message: "Couldn't save what you shared — try sharing it again." });
+      });
+  }, [showToast]);
 
   // Restore an unsaved draft left behind by a previous session (e.g. the
   // user navigated away or the app closed before tapping Save).
