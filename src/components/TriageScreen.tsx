@@ -9,20 +9,7 @@ import { ArrowLeftIcon, MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/componen
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { transcriptPlaceholder } from "@/components/EntryCard";
 import { useRunAction, useToast } from "@/components/Toast";
-
-// Mirrors lc_mark_promoted's destination enum exactly. The first two keep
-// their fixed positions in the action grid; the rest live behind a disclosure
-// so every destination the MCP tool accepts is also reachable here, without
-// adding buttons the README's four-fixed-actions constraint rules out.
-const DESTINATIONS = [
-  { id: "kindling", label: "Kindling", primary: true },
-  { id: "controlledchaos", label: "→ CC", full: "ControlledChaos", primary: true },
-  { id: "threadnotes", label: "ThreadNotes", primary: false },
-  { id: "tangle", label: "Tangle", primary: false },
-  { id: "chaospatch", label: "ChaosPatch", primary: false },
-] as const;
-
-type Destination = (typeof DESTINATIONS)[number]["id"];
+import { DESTINATIONS, destinationLabel, type Destination } from "@/lib/labels";
 
 export function TriageScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -97,8 +84,7 @@ export function TriageScreen() {
   async function handleSendTo(destination: Destination) {
     if (!entry?.transcript) return;
     const entryId = entry._id;
-    const meta = DESTINATIONS.find((d) => d.id === destination)!;
-    const label = "full" in meta ? meta.full : meta.label;
+    const label = destinationLabel(destination);
 
     // The clipboard IS the handoff to the other app, so a failed copy must not
     // mark the entry promoted — and must not fail silently either. writeText

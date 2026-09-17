@@ -7,6 +7,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon } from "@/components/icons";
 import { StuckCaptures } from "@/components/StuckCaptures";
+import { STATUS_LABELS } from "@/lib/labels";
 import { getExistingPushSubscription, isPushSupported, subscribeToPush } from "@/lib/push";
 
 export function SettingsScreen() {
@@ -149,10 +150,10 @@ export function SettingsScreen() {
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
               {(
                 [
-                  ["Untriaged", stats.untriaged],
-                  ["Kept", stats.kept],
-                  ["Sent on", stats.promoted],
-                  ["Discarded", stats.discarded],
+                  [STATUS_LABELS.untriaged, stats.untriaged],
+                  [STATUS_LABELS.kept, stats.kept],
+                  [STATUS_LABELS.promoted, stats.promoted],
+                  [STATUS_LABELS.discarded, stats.discarded],
                 ] as const
               ).map(([label, value]) => (
                 <div key={label} className="flex justify-between">

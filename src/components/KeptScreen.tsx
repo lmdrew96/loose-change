@@ -9,6 +9,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
 import { useRunAction, useToast } from "@/components/Toast";
+import { STATUS_LABELS } from "@/lib/labels";
 
 const PAGE_SIZE = 20;
 
@@ -16,9 +17,9 @@ const PAGE_SIZE = 20;
 // could only reach them by guessing a search term. Kept stays the default
 // since it's the archive you actually revisit.
 const TABS = [
-  { status: "kept", label: "Kept", empty: "Nothing kept yet." },
-  { status: "promoted", label: "Sent on", empty: "Nothing sent to another app yet." },
-  { status: "discarded", label: "Discarded", empty: "Nothing discarded." },
+  { status: "kept", label: STATUS_LABELS.kept, empty: "Nothing kept yet." },
+  { status: "promoted", label: STATUS_LABELS.promoted, empty: "Nothing sent to another app yet." },
+  { status: "discarded", label: STATUS_LABELS.discarded, empty: "Nothing discarded." },
 ] as const;
 
 type Status = (typeof TABS)[number]["status"];
@@ -54,11 +55,13 @@ export function KeptScreen() {
     setCursorStack([null]);
   }
 
-  async function handleDelete(entryId: Id<"entries">) {
-    const result = await runAction("Couldn't delete that — try again.", () => discardEntry({ entryId }));
+  // The same 30-day discard Triage and Search offer. It used to be called
+  // "Delete" here, which also wrongly implied it was permanent.
+  async function handleDiscard(entryId: Id<"entries">) {
+    const result = await runAction("Couldn't discard that — try again.", () => discardEntry({ entryId }));
     if (!result.ok) return;
     showToast({
-      message: "Deleted",
+      message: "Discarded",
       durationMs: 6000,
       action: { label: "Undo", onClick: () => void handleRestore(entryId) },
     });
@@ -131,8 +134,8 @@ export function KeptScreen() {
                 </button>
               ) : (
                 <button
-                  onClick={() => void handleDelete(entry._id)}
-                  aria-label="Delete"
+                  onClick={() => void handleDiscard(entry._id)}
+                  aria-label="Discard"
                   className="shrink-0 rounded-full p-2 text-beaver hover:text-engineering"
                 >
                   <TrashIcon size={16} />

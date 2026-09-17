@@ -7,6 +7,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { MicIcon, KeyboardIcon, ChatBubbleIcon } from "@/components/icons";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { formatTimestamp } from "@/lib/format";
+import { STATUS_LABELS, destinationLabel } from "@/lib/labels";
 
 export type EntryWithAudio = Doc<"entries"> & { audioUrl: string | null };
 
@@ -103,7 +104,11 @@ export function EntryCard({
           <p className={`text-sm ${expanded ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{text}</p>
           <p className="mt-1 text-xs text-beaver">
             {formatTimestamp(entry.createdAt)}
-            {showStatus && ` · ${entry.status}`}
+            {showStatus && entry.status !== "promoted" && ` · ${STATUS_LABELS[entry.status]}`}
+            {/* "Where did I send that?" is exactly the gap this app covers, so
+                a sent entry always names its destination, not just in Search. */}
+            {entry.status === "promoted" &&
+              (entry.promotedTo ? ` · Sent to ${destinationLabel(entry.promotedTo)}` : ` · ${STATUS_LABELS.promoted}`)}
             {!expanded && " · tap to expand"}
           </p>
         </button>

@@ -7,18 +7,19 @@ import { api } from "../../convex/_generated/api";
 import { ArrowLeftIcon, TrashIcon } from "@/components/icons";
 import { EntryCard } from "@/components/EntryCard";
 import { useRunAction } from "@/components/Toast";
+import { STATUS_LABELS, type EntryStatus } from "@/lib/labels";
 
 // Mirrors lc_search's `status` parameter, including its optionality — "All"
 // is the tool omitting the argument.
-const FILTERS = [
+const FILTERS: readonly { value: EntryStatus | undefined; label: string }[] = [
   { value: undefined, label: "All" },
-  { value: "untriaged", label: "Untriaged" },
-  { value: "kept", label: "Kept" },
-  { value: "promoted", label: "Sent on" },
-  { value: "discarded", label: "Discarded" },
-] as const;
+  ...(["untriaged", "kept", "promoted", "discarded"] as const).map((value) => ({
+    value,
+    label: STATUS_LABELS[value],
+  })),
+];
 
-type StatusFilter = (typeof FILTERS)[number]["value"];
+type StatusFilter = EntryStatus | undefined;
 
 export function SearchScreen() {
   const { isAuthenticated } = useConvexAuth();
